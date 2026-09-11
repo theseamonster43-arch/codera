@@ -17,6 +17,15 @@ end
 target 'Codera' do
   config = use_native_modules!
 
+  # Google Sign-In pulls in AppCheckCore, a Swift pod that imports these two
+  # Objective-C pods. Built as static libraries (React Native's default) Swift
+  # can only import them with module maps, so they're switched on for just
+  # these two — not globally with use_modular_headers!, which breaks React's own
+  # pods. Without this, `pod install` stops with "Swift pods cannot yet be
+  # integrated as static libraries".
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

@@ -55,6 +55,10 @@ workflows:
 
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          # Show the simulator window, not just the headless device, so that
+          # with "Enable SSH/VNC access" ticked you see Codera on the Mac's
+          # screen and can use it. It stays open after the screenshots.
+          open -a Simulator --args -CurrentDeviceUDID "$UDID" || true
           xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100
           xcrun simctl install "$UDID" build/ios/Build/Products/Release-iphonesimulator/Codera.app
 
@@ -68,6 +72,10 @@ workflows:
             sleep 9
             xcrun simctl io "$UDID" screenshot "screenshots/$MODE-2-sign-in.png"
           done
+
+          # Leave it in dark mode and on screen for anyone connecting over VNC.
+          xcrun simctl ui "$UDID" appearance dark
+          xcrun simctl launch "$UDID" "$BUNDLE" || true
 
           # Zipped app, for tapping around in a browser on appetize.io.
           (cd build/ios/Build/Products/Release-iphonesimulator && zip -qry "$CM_BUILD_DIR/screenshots/Codera-simulator.zip" Codera.app)
