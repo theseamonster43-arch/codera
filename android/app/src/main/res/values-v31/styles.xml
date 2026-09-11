@@ -1,0 +1,16 @@
+<resources>
+
+    <!-- Android 12+ puts its own splash screen in front of the window background
+         for the first second or so. It shows the same tile, sized in splash_icon.xml
+         to land on the same pixels as splash.xml, so the three stages — system
+         splash, window background, src/Splash.js — read as one screen. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@drawable/splash</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+
+</resources>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Codera tile, drawn from the same shapes as src/Mark.js and the app icon.
+     72dp to match MARK in src/Splash.js, which takes over from this seamlessly. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="72dp" android:height="72dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <path android:pathData="M30,0 H70 A30,30 0 0 1 100,30 V70 A30,30 0 0 1 70,100 H30 A30,30 0 0 1 0,70 V30 A30,30 0 0 1 30,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear"
+                android:startX="0" android:startY="0" android:endX="100" android:endY="100">
+                <item android:offset="0" android:color="#FF22C55E"/>
+                <item android:offset="1" android:color="#FF60A5FA"/>
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M35,35.5 L21.5,50 L35,64.5 M65,35.5 L78.5,50 L65,64.5 M55.5,32.5 L44.5,67.5"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="6.2"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000"/>
+</vector>

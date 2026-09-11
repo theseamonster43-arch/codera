@@ -20,6 +20,7 @@
     "firebase": "^12.19.0",
     "react": "19.2.3",
     "react-native": "0.87.1",
+    "react-native-google-mobile-ads": "^16.5.0",
     "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.9.1",
     "react-native-screens": "^4.27.0",

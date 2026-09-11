@@ -1,0 +1,16 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- The launch screen. Stays behind the app, but the app paints its own
+             background over every pixel, so it is only ever seen at start-up. -->
+        <item name="android:windowBackground">@drawable/splash</item>
+        <!-- Otherwise the bar icons stay white over the light launch screen until
+             JavaScript has loaded, and the clock and battery all but vanish. -->
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/light_system_bars</item>
+    </style>
+
+</resources>

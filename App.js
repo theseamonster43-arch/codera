@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -9,6 +9,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebase';
 import { useTheme } from './src/theme';
 import TabBar from './src/TabBar';
+import Splash from './src/Splash';
+import { useAdsGate } from './src/ads';
 import SignInScreen from './src/screens/SignInScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ShortsScreen from './src/screens/ShortsScreen';
@@ -16,12 +18,15 @@ import FollowedScreen from './src/screens/FollowedScreen';
 import YouScreen from './src/screens/YouScreen';
 import ComposePostScreen from './src/screens/ComposePostScreen';
 import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
+import PlusScreen from './src/screens/PlusScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function Tabs() {
   const T = useTheme();
+  // Only inside the signed-in app, and it never starts ads for Plus members.
+  useAdsGate();
   return (
     <Tab.Navigator
       // Drawn by hand: no labels, and the + in the middle is an action rather
@@ -52,6 +57,7 @@ export default function App() {
   // is already signed in, while the saved session is still being read back.
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+  const [splash, setSplash] = useState(true);
 
   useEffect(() => onAuthStateChanged(auth, u => {
     setUser(u);
@@ -69,33 +75,33 @@ export default function App() {
     };
   }, [T]);
 
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, backgroundColor: T.bg, justifyContent: 'center' }}>
-        <ActivityIndicator color={T.blue} />
-      </View>
-    );
-  }
-
   return (
-    <SafeAreaProvider>
-      {!user ? (
-        // Signed out there is no navigator at all, rather than a navigator with
-        // guarded screens — so no deep link or back gesture can reach inside.
-        <SignInScreen />
-      ) : (
-        <NavigationContainer theme={navTheme}>
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Tabs" component={Tabs} />
-            {/* Composing slides up over everything, tab bar included: it is a
-                task you finish or cancel, not a place you navigate around. */}
-            <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
-              <Stack.Screen name="ComposePost" component={ComposePostScreen} />
-              <Stack.Screen name="ComposeVideo" component={ComposeVideoScreen} />
-            </Stack.Group>
-          </Stack.Navigator>
-        </NavigationContainer>
+    <View style={{ flex: 1, backgroundColor: T.bg }}>
+      {/* The app mounts underneath the splash as soon as sign-in is known, so
+          it is already drawn by the time the splash fades off it. */}
+      {ready && (
+        <SafeAreaProvider>
+          {!user ? (
+            // Signed out there is no navigator at all, rather than a navigator
+            // with guarded screens — so no deep link or back gesture can reach inside.
+            <SignInScreen />
+          ) : (
+            <NavigationContainer theme={navTheme}>
+              <Stack.Navigator screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="Tabs" component={Tabs} />
+                {/* Composing slides up over everything, tab bar included: it is
+                    a task you finish or cancel, not a place you navigate around. */}
+                <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
+                  <Stack.Screen name="ComposePost" component={ComposePostScreen} />
+                  <Stack.Screen name="ComposeVideo" component={ComposeVideoScreen} />
+                  <Stack.Screen name="Plus" component={PlusScreen} />
+                </Stack.Group>
+              </Stack.Navigator>
+            </NavigationContainer>
+          )}
+        </SafeAreaProvider>
       )}
-    </SafeAreaProvider>
+      {splash && <Splash ready={ready} onDone={() => setSplash(false)} />}
+    </View>
   );
 }

@@ -1,0 +1,25 @@
+{
+  "migIndex": 1,
+  "data": [
+    {
+      "path": "assets/fonts/ScoutieSans-Bold.ttf",
+      "sha1": "6c180beb9042ee9253ff9177a32c9ccff575b73a"
+    },
+    {
+      "path": "assets/fonts/ScoutieSans-ExtraBold.ttf",
+      "sha1": "7f215908e9c12eb631dca9803ddf209f52ee8ffb"
+    },
+    {
+      "path": "assets/fonts/ScoutieSans-Medium.ttf",
+      "sha1": "6d1d161ccce0c16019c0238d8df163f312fa9ba7"
+    },
+    {
+      "path": "assets/fonts/ScoutieSans-Regular.ttf",
+      "sha1": "0f2d06f69ba05eabf8d42aaa67c908513ed1b2b0"
+    },
+    {
+      "path": "assets/fonts/ScoutieSans-SemiBold.ttf",
+      "sha1": "76d32c8d314de8c97320d1d4b3bb3898529e6e37"
+    }
+  ]
+}

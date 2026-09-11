@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app background in dark appearance: DARK.bg in src/theme.js. -->
+    <color name="splash_bg">#080C0A</color>
+</resources>

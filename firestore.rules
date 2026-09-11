@@ -50,5 +50,14 @@ service cloud.firestore {
       // take a post down.
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
+
+    // Each person's account record — for now, their Codera Plus status.
+    // Readable only by its owner. Nothing in the app may write it: Plus is
+    // switched on and off by the plusSubscribe / plusCancel Cloud Functions, so
+    // it can't be granted by crafting a request.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
   }
 }

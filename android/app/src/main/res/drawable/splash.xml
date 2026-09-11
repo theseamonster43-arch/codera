@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The window background: what shows from the moment the app is tapped until
+     JavaScript draws its first frame. That frame is src/Splash.js, which starts
+     as this exact picture, so the hand-off cannot be seen. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" android:opacity="opaque">
+    <item android:drawable="@color/splash_bg"/>
+    <item android:drawable="@drawable/splash_mark" android:gravity="center"
+          android:width="72dp" android:height="72dp"/>
+</layer-list>

@@ -1,0 +1,77 @@
+# Codemagic: builds the iPhone app on a cloud Mac and photographs it running in
+# the newest iOS simulator — the way to check the iOS version without a Mac.
+#
+# Starts only when you press "Start new build" (no automatic triggers), so the
+# 500 free Mac minutes a month aren't spent on every push.
+workflows:
+  ios-simulator:
+    name: iOS simulator + screenshots
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      # Newest stable Xcode: Liquid Glass needs the iOS 26 SDK and simulator.
+      xcode: latest
+      node: 22
+      cocoapods: default
+    scripts:
+      - name: Install JavaScript packages
+        script: npm ci
+
+      - name: Install CocoaPods
+        script: cd ios && pod install
+
+      - name: Build for the simulator
+        # Release, so the JavaScript is bundled into the app — there's no Metro
+        # server in the cloud. No signing: simulator builds don't need it.
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/Codera.xcworkspace \
+            -scheme Codera \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ios \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
+
+      - name: Run in the simulator and take screenshots
+        script: |
+          set -e
+          mkdir -p screenshots
+
+          # The newest iOS runtime installed, and an iPhone on it.
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devs = json.load(sys.stdin)["devices"]
+          ios = [k for k in devs if ".iOS-" in k]
+          ios.sort(key=lambda k: [int(x) for x in k.split(".iOS-")[1].split("-")])
+          for rt in reversed(ios):
+              phones = [d for d in devs[rt] if d["name"].startswith("iPhone")]
+              if phones:
+                  print(phones[-1]["udid"]); break
+          ')
+          echo "Simulator: $(xcrun simctl list devices | grep "$UDID")"
+
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$UDID" build/ios/Build/Products/Release-iphonesimulator/Codera.app
+
+          BUNDLE=org.reactjs.native.example.Codera
+          for MODE in dark light; do
+            xcrun simctl ui "$UDID" appearance "$MODE"
+            xcrun simctl terminate "$UDID" "$BUNDLE" 2>/dev/null || true
+            xcrun simctl launch "$UDID" "$BUNDLE"
+            sleep 1.5
+            xcrun simctl io "$UDID" screenshot "screenshots/$MODE-1-starting.png"
+            sleep 9
+            xcrun simctl io "$UDID" screenshot "screenshots/$MODE-2-sign-in.png"
+          done
+
+          # Zipped app, for tapping around in a browser on appetize.io.
+          (cd build/ios/Build/Products/Release-iphonesimulator && zip -qry "$CM_BUILD_DIR/screenshots/Codera-simulator.zip" Codera.app)
+
+    artifacts:
+      - screenshots/*.png
+      - screenshots/*.zip

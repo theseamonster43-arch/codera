@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark status/navigation bar icons on the light background. Needed before
+         JavaScript runs; afterwards StatusBar in each screen takes over. -->
+    <bool name="light_system_bars">true</bool>
+</resources>
