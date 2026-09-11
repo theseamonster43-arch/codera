@@ -5,7 +5,8 @@ import { signOut } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { auth } from '../firebase';
-import { useTheme, TAB_H, F } from '../theme';
+import { useTheme, F } from '../theme';
+import useTabSpace from '../tabSpace';
 import { Person, Play, Chevron } from '../Icons';
 import Empty from '../Empty';
 import PostCard from '../PostCard';
@@ -19,6 +20,7 @@ export default function YouScreen({ navigation }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabSpace();
   const { posts } = usePosts();
   const plus = usePlus();
 
@@ -108,7 +110,7 @@ export default function YouScreen({ navigation }) {
             onAction={() => navigation.navigate('ComposePost')}
           />
         }
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: TAB_H + insets.bottom + 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: tabSpace + 24 }}
         showsVerticalScrollIndicator={false}
       />
     </View>

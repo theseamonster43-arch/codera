@@ -4,7 +4,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTheme, TAB_H, F } from '../theme';
+import { useTheme, F } from '../theme';
+import useTabSpace from '../tabSpace';
 import { Code, Search } from '../Icons';
 import Mark from '../Mark';
 import Empty from '../Empty';
@@ -16,6 +17,7 @@ export default function HomeScreen({ navigation }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabSpace();
   const { posts, loading, error } = usePosts();
 
   const feed = useMemo(() => posts.filter(p => p.type !== 'short'), [posts]);
@@ -36,7 +38,7 @@ export default function HomeScreen({ navigation }) {
         keyExtractor={p => p.id}
         renderItem={({ item }) => <PostCard post={item} />}
         ListHeaderComponent={header}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: TAB_H + insets.bottom + 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: tabSpace + 24 }}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           loading ? (

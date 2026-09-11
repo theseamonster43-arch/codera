@@ -2,7 +2,8 @@ import React from 'react';
 import { Text, ScrollView, StyleSheet, StatusBar, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useTheme, TAB_H, F } from '../theme';
+import { useTheme, F } from '../theme';
+import useTabSpace from '../tabSpace';
 import { Followed } from '../Icons';
 import Empty from '../Empty';
 
@@ -10,6 +11,7 @@ import Empty from '../Empty';
 export default function FollowedScreen() {
   const T = useTheme();
   const insets = useSafeAreaInsets();
+  const tabSpace = useTabSpace();
 
   return (
     <View style={[s.fill, { backgroundColor: T.bg }]}>
@@ -19,7 +21,7 @@ export default function FollowedScreen() {
         contentContainerStyle={{
           flexGrow: 1,
           paddingTop: insets.top + 16,
-          paddingBottom: TAB_H + insets.bottom + 24,
+          paddingBottom: tabSpace + 24,
         }}
       >
         <Text style={[s.h1, { color: T.text }]}>Followed</Text>

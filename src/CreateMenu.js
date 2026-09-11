@@ -7,6 +7,11 @@ import { Shorts, Play, Code, Plus } from './Icons';
 import ButtonFill from './ButtonFill';
 import { BRAND } from './Gradient';
 
+// Roughly the height of iOS 26's floating glass tab bar above the home
+// indicator. The menu renders in a modal, outside the navigator that measures
+// the real bar, so it can't ask.
+const NATIVE_BAR_H = 70;
+
 /** What the + button can make. Order is bottom-up, nearest the thumb first. */
 export const KINDS = [
   { id: 'short', title: 'Record a short', sub: 'Under a minute, one idea', icon: Shorts },
@@ -24,7 +29,13 @@ export const KINDS = [
  * Everything animates with the native driver (opacity and transform only), so
  * it stays smooth even while the JS thread is busy loading the next screen.
  */
-export default function CreateMenu({ open, onClose, onPick }) {
+/**
+ * `native`: opened from Apple's tab bar, whose + is a separate circle at the
+ * end of the bar rather than a button in the middle. There's no centre + for an
+ * × to replace, so none is drawn — a tap anywhere outside closes the menu — and
+ * the options sit above the floating glass bar instead of Codera's own.
+ */
+export default function CreateMenu({ open, onClose, onPick, native = false }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
@@ -60,7 +71,8 @@ export default function CreateMenu({ open, onClose, onPick }) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
-      <View style={[s.stack, { bottom: TAB_H + insets.bottom + 14 }]} pointerEvents="box-none">
+      <View style={[s.stack, { bottom: (native ? NATIVE_BAR_H : TAB_H) + insets.bottom + 14 }]}
+            pointerEvents="box-none">
         {KINDS.map((k, i) => {
           // Each option rises a little further and a little later than the one
           // below it, so they fan up out of the button instead of popping in as
@@ -100,16 +112,18 @@ export default function CreateMenu({ open, onClose, onPick }) {
         })}
       </View>
 
-      <View style={[s.closeRow, { bottom: insets.bottom, height: TAB_H }]} pointerEvents="box-none">
-        <Pressable onPress={onClose} hitSlop={10}>
-          {/* Sits exactly where the + was, so it wears the same colours. */}
-          <ButtonFill colors={BRAND} style={s.close}>
-            <Animated.View style={{ transform: [{ rotate: spin }] }}>
-              <Plus color="#fff" size={24} />
-            </Animated.View>
-          </ButtonFill>
-        </Pressable>
-      </View>
+      {!native && (
+        <View style={[s.closeRow, { bottom: insets.bottom, height: TAB_H }]} pointerEvents="box-none">
+          <Pressable onPress={onClose} hitSlop={10}>
+            {/* Sits exactly where the + was, so it wears the same colours. */}
+            <ButtonFill colors={BRAND} style={s.close}>
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <Plus color="#fff" size={24} />
+              </Animated.View>
+            </ButtonFill>
+          </Pressable>
+        </View>
+      )}
     </Modal>
   );
 }

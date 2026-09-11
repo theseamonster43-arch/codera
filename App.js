@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeBottomTabNavigator } from '@bottom-tabs/react-navigation';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -9,6 +10,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/firebase';
 import { useTheme } from './src/theme';
 import TabBar from './src/TabBar';
+import CreateMenu from './src/CreateMenu';
+import { GLASS } from './src/ButtonFill';
 import Splash from './src/Splash';
 import { useAdsGate } from './src/ads';
 import SignInScreen from './src/screens/SignInScreen';
@@ -21,12 +24,73 @@ import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
 import PlusScreen from './src/screens/PlusScreen';
 
 const Tab = createBottomTabNavigator();
+const NativeTab = createNativeBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-function Tabs() {
-  const T = useTheme();
+/**
+ * Apple's own tab bar on iPhones with Liquid Glass (iOS 26+): the real
+ * UITabBar, so it gets the genuine glass capsule, the sliding selection and
+ * shrinking on scroll — not a lookalike.
+ *
+ * Not on iPad, where iPadOS moves the native tab bar to the top of the screen;
+ * the bar belongs at the bottom, so iPad keeps Codera's own bar. Android and
+ * older iPhones keep it too.
+ */
+const NATIVE_TABS = Platform.OS === 'ios' && GLASS && !Platform.isPad;
+
+// The Create "tab" never shows a page: pressing it opens the create menu.
+const Nothing = () => null;
+
+function Tabs({ navigation }) {
   // Only inside the signed-in app, and it never starts ads for Plus members.
   useAdsGate();
+  return NATIVE_TABS ? <GlassTabs navigation={navigation} /> : <CoderaTabs />;
+}
+
+function GlassTabs({ navigation }) {
+  const T = useTheme();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const pick = kind => {
+    setMenuOpen(false);
+    if (kind === 'post') navigation.navigate('ComposePost');
+    else navigation.navigate('ComposeVideo', { kind });
+  };
+
+  // SF Symbols: Apple's own icons, filled on the page you're on.
+  const icon = (outline, filled) => ({ focused }) => ({ sfSymbol: focused ? filled : outline });
+
+  return (
+    <>
+      <NativeTab.Navigator
+        labeled={false}
+        minimizeBehavior="onScrollDown"
+        hapticFeedbackEnabled
+        tabBarActiveTintColor={T.blue}
+        screenOptions={{ sceneStyle: { backgroundColor: T.bg } }}
+      >
+        <NativeTab.Screen name="Home" component={HomeScreen}
+          options={{ title: 'Home', tabBarIcon: icon('house', 'house.fill') }} />
+        <NativeTab.Screen name="Shorts" component={ShortsScreen}
+          options={{ title: 'Shorts', tabBarIcon: icon('play.rectangle', 'play.rectangle.fill') }} />
+        <NativeTab.Screen name="Followed" component={FollowedScreen}
+          options={{ title: 'Followed', tabBarIcon: icon('person.2', 'person.2.fill') }} />
+        <NativeTab.Screen name="You" component={YouScreen}
+          options={{ title: 'You', tabBarIcon: icon('person.crop.circle', 'person.crop.circle.fill') }} />
+        {/* The + as its own glass circle, set apart at the end of the bar the
+            way iOS 26 separates a special tab. It never becomes the current
+            page — pressing it opens the create menu. */}
+        <NativeTab.Screen name="Create" component={Nothing}
+          options={{ title: 'Create', role: 'search', preventsDefault: true, tabBarIcon: () => ({ sfSymbol: 'plus' }) }}
+          listeners={{ tabPress: () => setMenuOpen(true) }} />
+      </NativeTab.Navigator>
+      <CreateMenu native open={menuOpen} onClose={() => setMenuOpen(false)} onPick={pick} />
+    </>
+  );
+}
+
+function CoderaTabs() {
+  const T = useTheme();
   return (
     <Tab.Navigator
       // Drawn by hand: no labels, and the + in the middle is an action rather

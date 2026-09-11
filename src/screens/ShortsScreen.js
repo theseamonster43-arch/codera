@@ -7,7 +7,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsFocused } from '@react-navigation/native';
 import Video from 'react-native-video';
 
-import { useTheme, TAB_H, F } from '../theme';
+import { useTheme, F } from '../theme';
+import useTabSpace, { useNativeTabBar } from '../tabSpace';
 import { Shorts, Person, Play } from '../Icons';
 import { ago } from '../data';
 import Empty from '../Empty';
@@ -47,7 +48,12 @@ export default function ShortsScreen({ navigation }) {
 
   // Each page is exactly the space above the tab bar, so a swipe lands squarely
   // on the next short rather than part-way between two.
-  const pageH = height - TAB_H - insets.bottom;
+  const tabSpace = useTabSpace();
+  // Under Apple's glass tab bar each short runs the full height of the screen,
+  // with the bar floating over the video; with Codera's own bar the page stops
+  // above it.
+  const underGlass = useNativeTabBar();
+  const pageH = underGlass ? height : height - tabSpace;
 
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -127,7 +133,7 @@ export default function ShortsScreen({ navigation }) {
           </View>
         )}
 
-        <View style={[st.info, { paddingBottom: 18 }]} pointerEvents="none">
+        <View style={[st.info, { paddingBottom: (underGlass ? tabSpace : 0) + 18 }]} pointerEvents="none">
           <View style={st.byRow}>
             <View style={st.avatar}>
               {item.authorPhoto
@@ -141,7 +147,7 @@ export default function ShortsScreen({ navigation }) {
         </View>
       </Pressable>
     );
-  }, [active, paused, focused, pageH, width, navigation]);
+  }, [active, paused, focused, pageH, width, navigation, underGlass, tabSpace]);
 
   if (!loading && shorts.length === 0) {
     return (
