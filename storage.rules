@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Codera's video files. Each person uploads only into their own folder,
+// videos/{their uid}/, which is what makes "only your own" a one-line rule.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /videos/{uid}/{file} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.contentType.matches('video/.*');
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}

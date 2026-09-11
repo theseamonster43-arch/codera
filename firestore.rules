@@ -1,0 +1,54 @@
+rules_version = '2';
+
+// Codera's database. Everything that can be posted lives in `posts`, told apart
+// by `type`, so these few rules cover posts, shorts and videos alike.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Fields every kind of post carries. The author is whoever is signed in —
+    // not whatever the app claims — and the time is the server's, so nobody can
+    // post as someone else or pin a post to the top with a date in the future.
+    function common(d) {
+      return d.uid == request.auth.uid
+        && d.createdAt == request.time
+        && d.likeCount == 0
+        && d.title is string && d.title.size() > 0 && d.title.size() <= 120
+        && d.authorName is string && d.authorName.size() <= 200
+        && (d.authorPhoto == null || d.authorPhoto is string);
+    }
+
+    // A written post. Limits match the compose screen's own.
+    function textPost(d) {
+      return d.type == 'post'
+        && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
+                             'body', 'code', 'lang', 'likeCount', 'createdAt'])
+        && d.body is string && d.body.size() <= 4000
+        && d.code is string && d.code.size() <= 8000
+        && (d.body.size() > 0 || d.code.size() > 0)
+        && (d.lang == null || d.lang is string);
+    }
+
+    // A short or a video. The file must sit in the poster's own folder, so a
+    // post cannot claim someone else's upload as its own.
+    function videoPost(d) {
+      return d.type in ['short', 'video']
+        && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
+                             'videoUrl', 'videoPath', 'duration', 'likeCount', 'createdAt'])
+        && d.videoUrl is string
+        && d.videoPath is string && d.videoPath.matches('videos/' + request.auth.uid + '/[^/]+')
+        && (d.duration == null || d.duration is number);
+    }
+
+    match /posts/{postId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && common(request.resource.data)
+        && (textPost(request.resource.data) || videoPost(request.resource.data));
+
+      // There is no edit screen, so nothing needs updating; only the author can
+      // take a post down.
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+  }
+}

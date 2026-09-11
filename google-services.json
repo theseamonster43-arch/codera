@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "376496609142",
+    "project_id": "codera-46b86",
+    "storage_bucket": "codera-46b86.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:376496609142:android:30bce0bb06b79568288c57",
+        "android_client_info": {
+          "package_name": "com.codera"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDtXpuSuFtIZGC_Frv9jTHfO1xu7Q5LX_0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
