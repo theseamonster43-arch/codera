@@ -34,6 +34,7 @@ export default function ComposeVideoScreen({ navigation, route }) {
 
   const [asset, setAsset] = useState(null);
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [progress, setProgress] = useState(null);   // null | 0..1
   const [err, setErr] = useState('');
 
@@ -79,6 +80,7 @@ export default function ComposeVideoScreen({ navigation, route }) {
         uri: asset.uri,
         kind,
         title,
+        description,
         duration: asset.duration,
         mime: asset.type,
         onProgress: setProgress,
@@ -151,6 +153,14 @@ export default function ComposeVideoScreen({ navigation, route }) {
                 style={s.input} value={title} onChangeText={setTitle}
                 placeholder="Give it a title" placeholderTextColor={T.muted}
                 maxLength={120} editable={!uploading}
+              />
+
+              {/* Optional, and labelled as such: nobody should feel they owe a
+                  description before they can post. */}
+              <TextInput
+                style={[s.input, s.desc]} value={description} onChangeText={setDescription}
+                placeholder="Description (optional)" placeholderTextColor={T.muted}
+                maxLength={4000} editable={!uploading} multiline textAlignVertical="top"
               />
 
               {uploading ? (
@@ -236,5 +246,6 @@ const styles = T => StyleSheet.create({
   fillBar: { height: '100%', backgroundColor: T.blue },
   pct: { color: T.muted, fontSize: 13, fontFamily: F['500'], marginTop: 8, textAlign: 'center' },
 
+  desc: { minHeight: 84, paddingTop: 12, paddingBottom: 12, fontSize: 14.5, lineHeight: 21 },
   err: { color: T.red, fontSize: 13, fontFamily: F['500'], marginTop: 14, textAlign: 'center' },
 });

@@ -44,8 +44,10 @@ service cloud.firestore {
     function videoPost(d) {
       return d.type in ['short', 'video']
         && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
-                             'videoUrl', 'videoPath', 'duration',
+                             'videoUrl', 'videoPath', 'duration', 'description',
                              'likeCount', 'dislikeCount', 'commentCount', 'createdAt'])
+        && (d.get('description', null) == null
+            || (d.description is string && d.description.size() <= 4000))
         && d.videoUrl is string
         && d.videoPath is string && d.videoPath.matches('videos/' + request.auth.uid + '/[^/]+')
         && (d.duration == null || d.duration is number);
@@ -96,6 +98,54 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && (resource.data.uid == request.auth.uid
             || get(/databases/$(database)/documents/posts/$(postId)).data.uid == request.auth.uid);
+    }
+
+    // How someone has dressed their own page: the banner across the top and
+    // the picture on it. Anyone signed in can see them — they are part of how a
+    // post looks — but only their owner can set them, and only to files in
+    // their own Storage folder.
+    match /profiles/{uid} {
+      allow read: if request.auth != null;
+
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(
+             ['bannerUrl', 'bannerPath', 'bannerY', 'photoUrl', 'photoPath',
+              'bio', 'username', 'updatedAt'])
+        && (!('username' in request.resource.data)
+            || (request.resource.data.username is string
+                && request.resource.data.username.size() >= 3
+                && request.resource.data.username.size() <= 20))
+        // Which strip of a tall picture the banner shows, as a percentage.
+        && (!('bannerY' in request.resource.data)
+            || (request.resource.data.bannerY is number
+                && request.resource.data.bannerY >= 0
+                && request.resource.data.bannerY <= 100))
+        && (!('bio' in request.resource.data)
+            || request.resource.data.bio == null
+            || (request.resource.data.bio is string
+                && request.resource.data.bio.size() <= 300))
+        && (!('bannerPath' in request.resource.data)
+            || request.resource.data.bannerPath == null
+            || request.resource.data.bannerPath.matches('profile/' + uid + '/[^/]+'))
+        && (!('photoPath' in request.resource.data)
+            || request.resource.data.photoPath == null
+            || request.resource.data.photoPath.matches('profile/' + uid + '/[^/]+'));
+    }
+
+    // Who holds which name. The document id is the name itself in lower case,
+    // so the database can only ever hold one of each: a second person claiming
+    // it would be writing a document that already exists, and create says no.
+    // Nobody may take a name off someone else — only its owner can release it.
+    match /usernames/{name} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['uid', 'at'])
+        && request.resource.data.uid == request.auth.uid
+        && name.size() >= 3 && name.size() <= 20
+        && name.matches('[a-z0-9_]+');
+
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
     // Each person's account record — for now, their Codera Plus status.

@@ -1,0 +1,948 @@
+/* Codera for the web.
+ *
+ * The same palette, the same Scoutie Sans and the same rule as the app: no
+ * gradients anywhere except the brand mark and the Plus page.
+ *
+ * The frame is YouTube's, because it is what people already know a video site
+ * to look like: a fixed bar across the top, and a left navigation that has
+ * three states — full labels when there is room, an icon rail when there is
+ * less, and nothing at all when the window is too narrow to spare the width.
+ */
+
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Regular.ttf')   format('truetype'); font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Medium.ttf')    format('truetype'); font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-SemiBold.ttf')  format('truetype'); font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Bold.ttf')      format('truetype'); font-weight: 700; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-ExtraBold.ttf') format('truetype'); font-weight: 800; font-display: swap; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-ExtraBold.ttf') format('truetype'); font-weight: 900; font-display: swap; }
+
+:root {
+  --green: #22c55e;
+  --green-dim: #16a34a;
+  --blue: #3b82f6;
+  --blue-soft: #60a5fa;
+  --amber: #f59e0b;
+  --red: #ef4444;
+  --on-green: #04140a;
+
+  --bg: #f5f7f6;
+  --bg2: #ffffff;
+  --bg3: #ebefec;
+  --border: rgba(22, 101, 52, 0.14);
+  --text: #0f1a14;
+  --muted: #56655b;
+  --stage: #000;
+
+  --top-h: 56px;
+  --rail-w: 76px;
+  --drawer-w: 240px;
+  --nav-w: 0px;              /* how much room the navigation takes; set per mode */
+  --radius: 14px;
+}
+
+/* The app was designed in the dark, and that is what the site opens in unless
+   the machine says otherwise or the reader picks a side. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #080c0a; --bg2: #0d1411; --bg3: #111a15;
+    --border: rgba(34, 197, 94, 0.12);
+    --text: #e2e8e4; --muted: #6b7b6f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #080c0a; --bg2: #0d1411; --bg3: #111a15;
+  --border: rgba(34, 197, 94, 0.12);
+  --text: #e2e8e4; --muted: #6b7b6f;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Scoutie Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  overflow-y: scroll;
+}
+[hidden] { display: none !important; }
+button, input, textarea, select { font: inherit; color: inherit; }
+a { color: inherit; text-decoration: none; }
+::selection { background: rgba(59, 130, 246, 0.28); }
+
+/* Scrollbars kept out of the way, but still usable where they matter. */
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- the bar across the top ---------------------------------------------- */
+
+.top {
+  position: fixed; inset: 0 0 auto 0; height: var(--top-h); z-index: 60;
+  display: flex; align-items: center; gap: 10px; padding: 0 14px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  border-bottom: 1px solid var(--border);
+}
+.top-l, .top-r { display: flex; align-items: center; gap: 6px; }
+.top-l { flex: none; }
+.top-r { flex: none; margin-left: auto; }
+
+.brand { display: flex; align-items: center; gap: 9px; padding: 4px 6px; border-radius: 10px; }
+.wordmark { font-weight: 900; font-size: 19px; letter-spacing: -0.6px; }
+.mark { display: block; width: 30px; height: 30px; flex: none; }
+.mark svg, .mark.big svg { display: block; width: 100%; height: 100%; }
+.mark.big { width: 78px; height: 78px; }
+
+.icon-btn {
+  width: 40px; height: 40px; border: 0; border-radius: 999px; flex: none;
+  background: transparent; display: grid; place-items: center; cursor: pointer;
+  transition: background 0.12s ease;
+}
+.icon-btn:hover { background: var(--bg3); }
+/* Every drawing is 22px unless something says otherwise. Without a size of its
+   own an inline SVG falls back to 300×150 and blows the button apart. */
+.i { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.i.solid { fill: currentColor; stroke: none; }
+
+.search {
+  flex: 1 1 auto; max-width: 560px; margin: 0 auto;
+  display: flex; align-items: center;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 999px; height: 40px; padding: 0 4px 0 16px;
+  transition: border-color 0.15s ease;
+}
+.search:focus-within { border-color: var(--blue); }
+.search input {
+  flex: 1; min-width: 0; border: 0; background: none; outline: none;
+  font-size: 14.5px; font-weight: 500;
+}
+.search input::placeholder { color: var(--muted); }
+.search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+.search-go {
+  width: 32px; height: 32px; border: 0; border-radius: 999px; background: transparent;
+  display: grid; place-items: center; cursor: pointer; color: var(--muted);
+}
+.search-go:hover { background: var(--bg3); color: var(--text); }
+
+.pill {
+  height: 38px; padding: 0 15px 0 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg2); display: inline-flex; align-items: center; gap: 7px;
+  font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.pill:hover { background: var(--bg3); }
+.pill.create .i { width: 20px; height: 20px; stroke-width: 2.2; }
+
+.avatar {
+  width: 34px; height: 34px; border-radius: 999px; border: 0; flex: none; cursor: pointer;
+  display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 14px;
+  background: linear-gradient(135deg, var(--green), var(--blue-soft));
+  overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ---- the navigation, in its three states --------------------------------- */
+
+.rail, .drawer {
+  position: fixed; top: var(--top-h); bottom: 0; left: 0; z-index: 50;
+  background: var(--bg); overflow-y: auto; overscroll-behavior: contain;
+  padding: 10px 0 24px;
+}
+.rail { width: var(--rail-w); }
+.drawer { width: var(--drawer-w); padding: 10px 12px 24px; }
+
+/* Overlaid rather than pushing the page: that is the state the window is in
+   when there is no room to give the navigation. */
+body.drawer-over .drawer { box-shadow: 0 0 0 1px var(--border), 24px 0 60px rgba(0,0,0,0.35); }
+.scrim {
+  position: fixed; inset: var(--top-h) 0 0 0; z-index: 45;
+  background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(2px);
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 16px; width: 100%;
+  padding: 0 12px; height: 42px; border: 0; border-radius: 10px;
+  background: transparent; cursor: pointer; text-align: left;
+  font-size: 14.5px; font-weight: 600; color: var(--text);
+}
+.nav-item:hover { background: var(--bg3); }
+.nav-item.on { background: var(--bg3); font-weight: 800; }
+.nav-item.on .i { color: var(--blue); }
+.nav-item .i { width: 23px; height: 23px; flex: none; }
+
+/* The rail: the same items, stacked instead of in a row, with the label small
+   underneath — enough to tell them apart without the width of a word. */
+.rail .nav-item {
+  flex-direction: column; gap: 5px; height: auto; padding: 14px 4px 10px;
+  border-radius: 12px; margin: 0 6px 2px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: 0.1px; text-align: center;
+}
+.rail .nav-item .i { width: 24px; height: 24px; }
+
+.nav-head {
+  font-size: 11px; font-weight: 800; letter-spacing: 1.1px; text-transform: uppercase;
+  color: var(--muted); padding: 0 12px; margin: 18px 0 6px;
+}
+.nav-sep { height: 1px; background: var(--border); margin: 12px 4px; border: 0; }
+.nav-foot { color: var(--muted); font-size: 11.5px; line-height: 1.7; padding: 12px; }
+
+/* A tab bar at the bottom once the sidebar is gone for good — the app's own
+   answer to a narrow screen, and it keeps every page one tap away. */
+.bottom {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; height: 58px;
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  border-top: 1px solid var(--border);
+}
+.bottom .nav-item {
+  flex: 1; flex-direction: column; gap: 3px; height: 58px; justify-content: center;
+  border-radius: 0; font-size: 0; background: none;
+}
+.bottom .nav-item .i { width: 25px; height: 25px; }
+.bottom .nav-item.on .i { color: var(--blue); }
+
+main {
+  padding-left: var(--nav-w);
+  padding-top: var(--top-h);
+  padding-bottom: var(--pad-b, 40px);
+  transition: padding-left 0.16s ease;
+  min-height: 100vh;
+}
+
+/* Wide: the navigation is spelled out and the page makes room for it. */
+body.nav-full { --nav-w: var(--drawer-w); }
+/* Less wide: icons only. */
+body.nav-rail { --nav-w: var(--rail-w); }
+/* Narrow: no sidebar at all — it only appears over the page on request. */
+body.nav-none { --nav-w: 0px; }
+/* Room for the phone tab bar, only where one is actually shown. */
+body.has-bottom { --pad-b: 84px; }
+
+/* ---- pages --------------------------------------------------------------- */
+
+.page { max-width: none; padding: 22px clamp(14px, 2.2vw, 30px) 40px; }
+.page.narrow { max-width: 1100px; margin: 0 auto; }
+/* Only the watch page keeps a ceiling: a player the width of a 34" screen is
+   not a better player. */
+.watch { max-width: 1800px; margin: 0 auto; }
+h1.title { font-size: clamp(22px, 2.4vw, 27px); font-weight: 900; letter-spacing: -0.7px; margin: 4px 0 18px; }
+h2.sub { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; margin: 30px 0 12px; }
+
+.chips { display: flex; gap: 9px; flex-wrap: wrap; margin-bottom: 20px; }
+.chip {
+  height: 34px; padding: 0 14px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg2); color: var(--text);
+  font-size: 13.5px; font-weight: 700; white-space: nowrap;
+}
+.chip:hover { background: var(--bg3); }
+.chip.on { background: var(--text); color: var(--bg); border-color: transparent; }
+.chip .n { color: var(--muted); font-weight: 600; margin-left: 5px; }
+.chip.on .n { color: var(--bg); opacity: 0.66; }
+
+.grid {
+  display: grid; gap: 26px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
+}
+
+/* A card: thumbnail, then a line of who and when, exactly as in the app. */
+.card { cursor: pointer; display: flex; flex-direction: column; }
+.thumb {
+  position: relative; aspect-ratio: 16 / 9; border-radius: var(--radius);
+  overflow: hidden; background: var(--stage);
+}
+.thumb video, .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb.tall { aspect-ratio: 9 / 16; }
+.badge {
+  position: absolute; right: 8px; bottom: 8px; padding: 2px 6px; border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78); color: #fff; font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.badge.left { left: 8px; right: auto; background: rgba(34, 197, 94, 0.92); color: var(--on-green); }
+.card-body { display: flex; gap: 11px; padding: 11px 2px 0; }
+.card h3 {
+  margin: 0 0 4px; font-size: 15px; font-weight: 800; line-height: 1.32; letter-spacing: -0.2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card .who { color: var(--muted); font-size: 13px; font-weight: 600; }
+.dots {
+  margin-left: auto; align-self: flex-start; width: 30px; height: 30px; border: 0;
+  border-radius: 999px; background: transparent; color: var(--muted); cursor: pointer;
+  display: grid; place-items: center; opacity: 0; transition: opacity 0.12s ease;
+}
+.card:hover .dots, .pcard:hover .dots, .dots.open, .dots:focus-visible { opacity: 1; }
+/* Reachable on a touchscreen, which has no hover to reveal it with. */
+@media (hover: none) { .dots { opacity: 1; } }
+.dots:hover { background: var(--bg3); color: var(--text); }
+.dots .i { width: 18px; height: 18px; }
+.menu button .i { width: 19px; height: 19px; }
+
+/* ---- the top of your own page ---------------------------------------------- */
+
+.banner {
+  position: relative; border-radius: 18px; overflow: hidden;
+  /* A height that grows with the window, never an aspect ratio with a ceiling
+     on it: that combination makes the box give up width once the ratio would
+     push it past the ceiling, so the banner stopped short of the page. */
+  width: 100%; height: clamp(132px, 16vw, 260px);
+  background:
+    radial-gradient(70% 140% at 18% 0%, rgba(34, 197, 94, 0.5), transparent 68%),
+    radial-gradient(70% 150% at 82% 100%, rgba(59, 130, 246, 0.5), transparent 70%),
+    var(--bg3);
+  border: 1px solid var(--border);
+  transition: box-shadow 0.18s ease;
+}
+/* The strip of the picture that shows is chosen by its owner and stored, so it
+   is the same strip at every window width instead of drifting with the layout. */
+.banner img {
+  width: 100%; height: 100%; display: block;
+  object-fit: cover; object-position: 50% calc(var(--by, 50) * 1%);
+  user-select: none; -webkit-user-drag: none;
+}
+.banner.moving { cursor: grab; touch-action: none; }
+.banner.moving:active { cursor: grabbing; }
+.banner.moving img { transition: none; }
+.banner .moving-bar {
+  position: absolute; inset: auto 0 0 0; z-index: 3;
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+.banner .moving-bar span { flex: 1; color: #fff; font-size: 12.5px; font-weight: 700; }
+.banner .moving-bar .pill { height: 30px; padding: 0 13px; font-size: 13px;
+  background: rgba(0, 0, 0, 0.5); border-color: rgba(255, 255, 255, 0.24); color: #fff; }
+.banner.moving .edit { display: none; }
+/* A picture of anything at all sits under the avatar and the button, so both
+   get a little darkness of their own to stand on. */
+.banner::after {
+  content: ''; position: absolute; inset: auto 0 0 0; height: 58%;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.42)); pointer-events: none;
+}
+.banner.drop { box-shadow: inset 0 0 0 2px var(--blue); }
+.banner .hint {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center;
+  gap: 6px; color: #fff; text-align: center; pointer-events: none; padding: 0 16px;
+}
+.banner .hint b { font-size: 15px; font-weight: 800; }
+.banner .hint span { font-size: 12.5px; font-weight: 600; opacity: 0.8; }
+.banner .edit {
+  position: absolute; right: 12px; bottom: 12px; z-index: 2;
+  background: rgba(0, 0, 0, 0.44); border-color: rgba(255, 255, 255, 0.22); color: #fff;
+  backdrop-filter: blur(10px);
+}
+.banner .edit:hover { background: rgba(0, 0, 0, 0.62); }
+.profile {
+  position: relative; z-index: 1;
+  display: flex; align-items: flex-end; gap: 18px; margin: -38px 0 20px; padding: 0 10px;
+}
+.profile .ring2 {
+  border-radius: 999px; padding: 4px; background: var(--bg); flex: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.profile .who3 { padding-bottom: 6px; min-width: 0; }
+.profile h1 { font-size: clamp(21px, 2.6vw, 28px); font-weight: 900; letter-spacing: -0.9px; margin: 0 0 4px; }
+.profile .line2 { color: var(--muted); font-size: 13.6px; font-weight: 600; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.profile .tools { margin-left: auto; display: flex; gap: 8px; padding-bottom: 8px; }
+
+.bio { margin: -6px 0 20px; padding: 0 8px; max-width: 720px; }
+.bio-txt {
+  margin: 0 0 8px; font-size: 14.6px; line-height: 1.6; font-weight: 500;
+  color: var(--muted); white-space: pre-wrap;
+}
+.bio .ghost2 { height: 32px; font-size: 13px; padding: 0 13px; color: var(--muted); }
+.bio .ghost2:hover { color: var(--text); }
+.bio textarea.field { height: auto; min-height: 86px; padding: 11px 14px; line-height: 1.55; resize: vertical; }
+.bio-row { display: flex; align-items: center; gap: 10px; }
+.bio-row .who { flex: 1; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+@media (max-width: 620px) {
+  .profile { flex-direction: column; align-items: flex-start; gap: 10px; margin-top: -28px; }
+  .profile .tools { margin-left: 0; }
+}
+
+/* A written post has no thumbnail, so the card is the post. */
+.pcard {
+  border: 1px solid var(--border); background: var(--bg2); border-radius: var(--radius);
+  padding: 15px 16px; display: flex; flex-direction: column; gap: 9px; cursor: pointer;
+}
+.pcard:hover { border-color: color-mix(in srgb, var(--blue) 40%, var(--border)); }
+.pcard h3 { font-size: 16px; margin: 0; }
+.pcard .body {
+  color: var(--muted); font-size: 14px; line-height: 1.55; font-weight: 500;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.pcard img.pic { width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; }
+
+pre.code {
+  margin: 0; padding: 13px 14px; border-radius: 11px; overflow-x: auto;
+  background: var(--bg3); border: 1px solid var(--border);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.7px; line-height: 1.6; white-space: pre;
+}
+.lang {
+  font-size: 11px; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--blue);
+}
+
+/* A horizontal shelf of shorts, the way the app's Shorts tab previews them. */
+.shelf { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x proximity; }
+.shelf .card { flex: 0 0 190px; scroll-snap-align: start; }
+
+.empty { text-align: center; color: var(--muted); padding: 64px 20px; }
+.empty .ring {
+  width: 64px; height: 64px; border-radius: 999px; margin: 0 auto 16px;
+  display: grid; place-items: center; background: var(--bg3); border: 1px solid var(--border);
+  color: var(--green);
+}
+.empty .ring .i { width: 28px; height: 28px; }
+.empty b { display: block; color: var(--text); font-size: 16.5px; font-weight: 800; margin-bottom: 6px; }
+.empty span { font-size: 14px; line-height: 1.6; max-width: 340px; display: inline-block; }
+
+.spinner {
+  width: 22px; height: 22px; border-radius: 999px; border: 2.5px solid var(--border);
+  border-top-color: var(--blue); animation: spin 0.7s linear infinite; margin: 60px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---- watching one thing --------------------------------------------------- */
+
+.watch { display: grid; grid-template-columns: minmax(0, 1fr) 352px; gap: 26px; align-items: start; }
+@media (max-width: 1150px) { .watch { grid-template-columns: minmax(0, 1fr); } }
+
+.player { border-radius: var(--radius); overflow: hidden; background: var(--stage); }
+.player video { width: 100%; max-height: 78vh; display: block; background: #000; }
+
+/* ---- the player -------------------------------------------------------------
+ *
+ * Codera's own controls rather than the browser's: the same green→blue as the
+ * mark on the played part of the bar, a row that fades out of the way while
+ * something is playing, and targets big enough to hit on a phone.
+ */
+
+.vp { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; }
+.vp video {
+  width: 100%; max-height: 78vh; display: block; background: #000; cursor: pointer;
+  aspect-ratio: 16 / 9; object-fit: contain;
+}
+.vp.fs { border-radius: 0; }
+.vp.fs video { max-height: 100vh; height: 100vh; object-fit: contain; }
+
+/* Everything the reader can press sits in one layer that fades as a whole. */
+.vp .skin {
+  position: absolute; inset: 0; opacity: 1; transition: opacity 0.25s ease;
+  background: linear-gradient(transparent 58%, rgba(0, 0, 0, 0.72));
+  pointer-events: none;
+}
+.vp .skin > * { pointer-events: auto; }
+.vp.idle .skin { opacity: 0; }
+.vp.idle video { cursor: none; }
+
+.vp .big {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 76px; height: 76px; border-radius: 999px; border: 0; cursor: pointer;
+  background: rgba(10, 14, 12, 0.55);
+  backdrop-filter: blur(16px) saturate(1.6);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  display: grid; place-items: center; color: #fff;
+  transition: transform 0.22s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.2s ease;
+}
+.vp .big .i { width: 34px; height: 34px; margin-left: 2px; }
+.vp .big:hover { transform: translate(-50%, -50%) scale(1.08); }
+.vp.playing .big { opacity: 0; transform: translate(-50%, -50%) scale(0.7); pointer-events: none; }
+
+/* Waiting for more of the file: a ring where the play button was. */
+.vp.waiting.playing::after {
+  content: ''; position: absolute; left: 50%; top: 50%; margin: -21px 0 0 -21px;
+  width: 42px; height: 42px; border-radius: 999px; pointer-events: none;
+  border: 3px solid rgba(255, 255, 255, 0.25); border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+
+/* What just happened, for the things that have no control to look at. */
+.vp .flash {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.9);
+  padding: 10px 18px; border-radius: 999px; pointer-events: none; opacity: 0;
+  background: rgba(10, 14, 12, 0.66); color: #fff; font-size: 15px; font-weight: 800;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.vp .flash.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+.vp .ctl { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 14px 10px; }
+.vp .times { display: flex; align-items: center; gap: 4px; color: #fff; }
+.vp .clock {
+  font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  padding: 0 8px; white-space: nowrap;
+}
+.vp .clock i { font-style: normal; opacity: 0.5; margin: 0 5px; }
+.vp .grow { flex: 1; }
+.vp .cbtn {
+  width: 38px; height: 38px; border: 0; border-radius: 999px; background: transparent;
+  color: #fff; display: grid; place-items: center; cursor: pointer; flex: none;
+  transition: background 0.14s ease, transform 0.12s ease, color 0.14s ease;
+}
+.vp .cbtn:hover { background: rgba(255, 255, 255, 0.18); }
+.vp .cbtn:active { transform: scale(0.9); }
+.vp .cbtn.lit { color: var(--green); }
+.vp .cbtn .i { width: 22px; height: 22px; }
+
+/* The scrubber: a thin line that thickens when you go near it. */
+.vp .seek { position: relative; height: 20px; display: flex; align-items: center; cursor: pointer; }
+.vp .track {
+  position: relative; height: 4px; width: 100%; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28); overflow: hidden;
+  transition: height 0.14s ease;
+}
+.vp .seek:hover .track, .vp .seek.dragging .track { height: 7px; }
+.vp .buf { position: absolute; inset: 0 auto 0 0; background: rgba(255, 255, 255, 0.36); width: 0; }
+.vp .fill {
+  position: absolute; inset: 0 auto 0 0; width: 0;
+  background: linear-gradient(90deg, var(--green), var(--blue-soft));
+}
+.vp .knob {
+  position: absolute; top: 50%; left: 0; width: 14px; height: 14px; border-radius: 999px;
+  background: #fff; transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.14s ease; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.55);
+}
+.vp .seek:hover .knob, .vp .seek.dragging .knob { transform: translate(-50%, -50%) scale(1); }
+.vp .tip {
+  position: absolute; bottom: 22px; transform: translateX(-50%); pointer-events: none;
+  padding: 4px 8px; border-radius: 7px; background: rgba(10, 14, 12, 0.86); color: #fff;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+}
+
+.vp .vol { display: flex; align-items: center; }
+.vp .vol input {
+  width: 0; opacity: 0; transition: width 0.2s ease, opacity 0.2s ease, margin 0.2s ease;
+  accent-color: #fff; cursor: pointer; height: 4px;
+}
+.vp .vol:hover input, .vp .vol:focus-within input { width: 76px; opacity: 1; margin: 0 8px 0 2px; }
+
+.vp .gearwrap { position: relative; display: flex; }
+.vp .speeds {
+  position: absolute; right: 0; bottom: 46px; min-width: 148px; padding: 6px;
+  background: rgba(14, 18, 16, 0.94); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 13px; box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  animation: menuIn 0.14s ease both;
+}
+.vp .speeds-head {
+  color: rgba(255, 255, 255, 0.55); font-size: 11px; font-weight: 800;
+  letter-spacing: 1px; text-transform: uppercase; padding: 6px 10px 8px;
+}
+.vp .speeds button {
+  display: block; width: 100%; text-align: left; border: 0; background: none; color: #fff;
+  padding: 9px 10px; border-radius: 8px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.vp .speeds button:hover { background: rgba(255, 255, 255, 0.14); }
+.vp .speeds button.on { color: var(--green); }
+.vp .speeds button.on::after { content: '✓'; float: right; }
+
+/* On a phone there is no room for every button, and no hover to reveal the
+   volume slider — the keys that matter are play, time and fullscreen. */
+@media (max-width: 620px), (pointer: coarse) {
+  .vp .wide-only, .vp .vol input { display: none; }
+  .vp .cbtn { width: 42px; height: 42px; }
+  .vp .cbtn .i { width: 23px; height: 23px; }
+  .vp .ctl { padding: 0 8px 8px; }
+}
+
+/* A short's player is the same one, without the frame. */
+.short .vp { height: 100%; border-radius: 16px; }
+.short .vp video { height: 100%; max-height: none; object-fit: contain; }
+.watch h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.4px; margin: 16px 0 12px; line-height: 1.3; }
+
+.byline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.byline .name { font-weight: 800; font-size: 14.5px; }
+.byline .when { color: var(--muted); font-size: 13px; font-weight: 600; }
+
+.acts { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.act {
+  height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--bg2); display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.act:hover { background: var(--bg3); }
+.act .i { width: 19px; height: 19px; }
+.act.on { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 45%, var(--border)); }
+.act.on.down { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
+.act.danger { color: var(--red); }
+
+.panel {
+  border: 1px solid var(--border); background: var(--bg2); border-radius: var(--radius);
+  padding: 15px 16px; margin-top: 16px;
+}
+.panel .meta { color: var(--muted); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.panel .text { font-size: 15px; line-height: 1.62; font-weight: 500; white-space: pre-wrap; }
+
+.next { display: flex; flex-direction: column; gap: 10px; }
+.next .row { display: flex; gap: 10px; cursor: pointer; }
+.next .row .thumb { flex: 0 0 158px; border-radius: 10px; }
+.next .row h4 {
+  margin: 0 0 4px; font-size: 13.6px; font-weight: 700; line-height: 1.35;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.next .row .who { color: var(--muted); font-size: 12.4px; font-weight: 600; }
+
+/* Comments */
+.cbox { display: flex; gap: 11px; margin: 18px 0 22px; align-items: flex-start; }
+.cbox textarea {
+  flex: 1; min-height: 42px; max-height: 220px; resize: vertical; border-radius: 12px;
+  border: 1px solid var(--border); background: var(--bg2); padding: 11px 13px;
+  font-size: 14.5px; font-weight: 500; line-height: 1.5; outline: none;
+}
+.cbox textarea:focus { border-color: var(--blue); }
+.comment { display: flex; gap: 11px; padding: 13px 0; }
+.comment .line { font-size: 12.6px; color: var(--muted); font-weight: 600; margin-bottom: 3px; }
+.comment .line b { color: var(--text); font-size: 13.4px; font-weight: 800; margin-right: 7px; }
+.comment .txt { font-size: 14.4px; line-height: 1.55; font-weight: 500; white-space: pre-wrap; }
+.comment .x {
+  margin-left: auto; border: 0; background: none; color: var(--muted); cursor: pointer;
+  font-size: 12.5px; font-weight: 700; opacity: 0; padding: 2px 6px;
+}
+.comment:hover .x { opacity: 1; }
+.comment .x:hover { color: var(--red); }
+
+/* ---- shorts --------------------------------------------------------------- */
+
+.shorts {
+  height: calc(100dvh - var(--top-h) - var(--pad-b, 0px));
+  overflow-y: auto; scroll-snap-type: y mandatory; scrollbar-width: none;
+}
+.shorts::-webkit-scrollbar { display: none; }
+.short {
+  height: 100%; scroll-snap-align: start; display: flex; align-items: center;
+  justify-content: center; gap: 14px; padding: 10px;
+}
+.short .stage {
+  position: relative; height: min(100%, 88vh); aspect-ratio: 9 / 16; max-width: 100%;
+  border-radius: 16px; overflow: hidden; background: var(--stage);
+}
+.short video { width: 100%; height: 100%; object-fit: contain; display: block; }
+.short .cap {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 16px 18px; color: #fff;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+.short .cap b { display: block; font-size: 15.5px; font-weight: 800; margin-bottom: 3px; }
+.short .cap span { font-size: 13px; opacity: 0.82; font-weight: 600; }
+.short .side { display: flex; flex-direction: column; gap: 14px; align-self: flex-end; padding-bottom: 24px; }
+.sbtn {
+  width: 48px; border: 0; background: none; color: var(--text); cursor: pointer;
+  display: grid; justify-items: center; gap: 3px; font-size: 12px; font-weight: 700;
+}
+.sbtn .ring {
+  width: 46px; height: 46px; border-radius: 999px; background: var(--bg3);
+  border: 1px solid var(--border); display: grid; place-items: center;
+}
+.sbtn.on .ring { color: var(--blue); border-color: color-mix(in srgb, var(--blue) 45%, var(--border)); }
+.sbtn.on.down .ring { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
+
+/* ---- Plus ----------------------------------------------------------------- */
+
+.plus-wrap { position: relative; overflow: hidden; border-radius: 20px; }
+.plus-wrap::before {
+  content: ''; position: absolute; inset: -40% -20% auto -20%; height: 620px; z-index: 0;
+  background:
+    radial-gradient(58% 60% at 24% 22%, rgba(34, 197, 94, 0.34), transparent 70%),
+    radial-gradient(56% 62% at 78% 34%, rgba(59, 130, 246, 0.34), transparent 72%);
+  filter: blur(6px);
+}
+.plus-in { position: relative; z-index: 1; padding: 46px clamp(16px, 4vw, 48px) 40px; text-align: center; }
+.plus-in .orb {
+  width: 96px; height: 96px; border-radius: 30px; margin: 0 auto 22px;
+  background: linear-gradient(135deg, var(--green), var(--blue-soft));
+  display: grid; place-items: center; color: #fff;
+  box-shadow: 0 22px 60px rgba(34, 197, 94, 0.28);
+}
+.plus-in .orb .i { width: 44px; height: 44px; }
+.plus-in h1 { font-size: clamp(30px, 4.4vw, 44px); font-weight: 900; letter-spacing: -1.4px; margin: 0 0 10px; }
+.plus-in h1 em { font-style: normal; background: linear-gradient(100deg, var(--green), var(--blue-soft));
+                 -webkit-background-clip: text; background-clip: text; color: transparent; }
+.plus-in .lede { color: var(--muted); font-size: 16px; font-weight: 500; max-width: 460px; margin: 0 auto 30px; line-height: 1.6; }
+
+.plan {
+  max-width: 430px; margin: 0 auto; border-radius: 20px; padding: 1.5px;
+  background: linear-gradient(135deg, var(--green), var(--blue-soft));
+}
+.plan-in { border-radius: 18.5px; background: var(--bg2); padding: 26px 24px; text-align: left; }
+.price { display: flex; align-items: baseline; gap: 6px; justify-content: center; margin-bottom: 22px; }
+.price b { font-size: 44px; font-weight: 900; letter-spacing: -2px; }
+.price span { color: var(--muted); font-weight: 700; font-size: 15px; }
+.perk { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; }
+.perk .tick {
+  width: 22px; height: 22px; border-radius: 999px; flex: none; margin-top: 1px;
+  background: linear-gradient(135deg, var(--green), var(--blue-soft));
+  display: grid; place-items: center; color: #fff;
+}
+.perk .tick .i { width: 13px; height: 13px; stroke-width: 3; }
+.perk b { display: block; font-size: 14.5px; font-weight: 800; margin-bottom: 2px; }
+.perk span { color: var(--muted); font-size: 13.4px; line-height: 1.5; font-weight: 500; }
+
+.brand-btn {
+  width: 100%; height: 50px; border: 0; border-radius: 14px; cursor: pointer; margin-top: 22px;
+  background: linear-gradient(120deg, var(--green), var(--blue)); color: #fff;
+  font-size: 16px; font-weight: 800; letter-spacing: -0.2px;
+  display: grid; place-items: center;
+}
+.brand-btn:disabled { opacity: 0.55; cursor: default; }
+.plus-note { color: var(--muted); font-size: 12.4px; line-height: 1.6; text-align: center; margin: 16px auto 0; max-width: 420px; }
+
+/* Stripe's form, sitting in Codera's own page — and given room to breathe:
+   cramped into a 380px card it stacks every field onto its own line. */
+.paybox {
+  max-width: 940px; margin: 8px auto 0; padding: 18px; border-radius: 20px;
+  background: var(--bg2); border: 1px solid var(--border); text-align: left;
+  display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  animation: rise 0.3s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+}
+@media (max-width: 760px) { .paybox { grid-template-columns: minmax(0, 1fr); gap: 14px; } }
+
+.payside { padding: 6px 2px; }
+.payhead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.payhead b { flex: 1; font-size: 16px; font-weight: 900; letter-spacing: -0.3px; }
+.payhead .pill { height: 32px; font-size: 13px; padding: 0 13px; }
+.payprice { display: flex; align-items: baseline; gap: 6px; margin-bottom: 16px; }
+.payprice b { font-size: 34px; font-weight: 900; letter-spacing: -1.5px; }
+.payprice span { color: var(--muted); font-weight: 700; font-size: 14px; }
+.payperk { display: flex; align-items: flex-start; gap: 9px; padding: 6px 0; font-size: 13.5px; font-weight: 600; }
+.payperk .i { width: 17px; height: 17px; stroke-width: 3; color: var(--green); margin-top: 2px; }
+.payside .plus-note { text-align: left; margin: 14px 0 0; }
+
+#payMount { min-height: 240px; }
+#payExpress:not(:empty) { margin-bottom: 4px; }
+.payor {
+  display: flex; align-items: center; gap: 12px; margin: 14px 0 16px;
+  color: var(--muted); font-size: 12.5px; font-weight: 700;
+}
+.payor::before, .payor::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.paybox .brand-btn { margin-top: 14px; }
+/* On a phone the button follows you down the form rather than hiding under the
+   tab bar at the end of it. */
+@media (pointer: coarse), (max-width: 620px) {
+  .paybox .brand-btn { position: sticky; bottom: 14px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+  body.has-bottom .paybox .brand-btn { bottom: 72px; }
+}
+.paybox .err { margin: 10px 2px 0; }
+
+/* The plan card steps aside while the form is up: the page is about paying now. */
+.plus-in.paying .plan, .plus-in.paying .lede, .plus-in.paying .orb { display: none; }
+.plus-in.paying h1 { font-size: clamp(24px, 3vw, 32px); margin-bottom: 18px; }
+.plus-chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: linear-gradient(120deg, var(--green), var(--blue)); color: #fff;
+  font-size: 11.5px; font-weight: 800; letter-spacing: 0.2px;
+}
+.plus-chip .i { width: 13px; height: 13px; }
+/* PLUS as part of the name, in the brand gradient — the one place besides the
+   mark and the Plus page where Codera uses one. */
+.word-plus {
+  font-size: 12px; font-weight: 900; letter-spacing: 1px; padding: 2px 7px;
+  border-radius: 6px; color: #fff; align-self: center;
+  background: linear-gradient(120deg, var(--green), var(--blue));
+}
+
+/* ---- sign in --------------------------------------------------------------- */
+
+.gate {
+  position: fixed; inset: 0; z-index: 80; background: var(--bg);
+  display: grid; place-items: center; padding: 24px; overflow-y: auto;
+}
+.gate .box { width: 100%; max-width: 380px; }
+.gate .mark { width: 62px; height: 62px; margin-bottom: 20px; }
+.gate h1 { font-size: 28px; font-weight: 900; letter-spacing: -1px; margin: 0 0 6px; }
+.gate p.lede { color: var(--muted); font-size: 14.6px; line-height: 1.6; margin: 0 0 26px; font-weight: 500; }
+.field {
+  width: 100%; height: 48px; border-radius: 13px; border: 1px solid var(--border);
+  background: var(--bg2); padding: 0 15px; font-size: 15px; font-weight: 500;
+  outline: none; margin-bottom: 11px;
+}
+.field:focus { border-color: var(--blue); }
+.err { color: var(--red); font-size: 13.4px; font-weight: 600; margin: 4px 0 0; }
+/* A username field wears its @ rather than making people type one. */
+.at { position: relative; }
+.at > span {
+  position: absolute; left: 15px; top: 0; height: 48px; display: grid; place-items: center;
+  color: var(--muted); font-size: 15px; font-weight: 800; pointer-events: none;
+}
+.at .field { padding-left: 32px; }
+
+.swap { color: var(--muted); font-size: 14px; margin-top: 18px; text-align: center; font-weight: 500; }
+.swap button { border: 0; background: none; color: var(--blue); font-weight: 800; cursor: pointer; padding: 0 2px; }
+
+/* ---- sheets, menus, toast ---------------------------------------------------- */
+
+.sheet {
+  position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px); display: grid; place-items: center; padding: 18px;
+  overflow-y: auto;
+}
+.sheet .card2 {
+  width: 100%; max-width: 560px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 20px; padding: 20px; margin: auto;
+}
+.sheet h2 { margin: 0 0 4px; font-size: 19px; font-weight: 900; letter-spacing: -0.5px; }
+.sheet .note { color: var(--muted); font-size: 13.6px; font-weight: 500; margin: 0 0 16px; line-height: 1.55; }
+.sheet .row2 { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+.sheet textarea.field { height: auto; min-height: 110px; padding: 12px 15px; line-height: 1.55; resize: vertical; }
+.sheet textarea.mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px; min-height: 130px;
+}
+.pickfile {
+  width: 100%; border: 1px dashed var(--border); background: var(--bg2); border-radius: 13px;
+  padding: 22px; text-align: center; cursor: pointer; color: var(--blue);
+  font-size: 14px; font-weight: 700; margin-bottom: 11px;
+}
+.pickfile:hover { background: var(--bg3); }
+.bar { height: 6px; border-radius: 999px; background: var(--bg3); overflow: hidden; margin-top: 12px; }
+.bar > i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--green), var(--blue)); }
+
+.menu {
+  position: fixed; z-index: 95; min-width: 186px; padding: 6px;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.32);
+}
+.menu button {
+  display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none;
+  padding: 10px 12px; border-radius: 9px; cursor: pointer; font-size: 14px; font-weight: 700;
+  text-align: left;
+}
+.menu button:hover { background: var(--bg3); }
+.menu button.danger { color: var(--red); }
+.menu .who2 { padding: 10px 12px 12px; border-bottom: 1px solid var(--border); margin-bottom: 6px; }
+.menu .who2 b { display: block; font-size: 14px; font-weight: 800; }
+.menu .who2 span { color: var(--muted); font-size: 12.5px; font-weight: 600; word-break: break-all; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 100;
+  background: var(--text); color: var(--bg); padding: 11px 18px; border-radius: 999px;
+  font-size: 14px; font-weight: 700; box-shadow: 0 14px 40px rgba(0, 0, 0, 0.3);
+  max-width: min(92vw, 460px); text-align: center;
+}
+
+/* ---- splash ---------------------------------------------------------------- */
+
+.splash {
+  position: fixed; inset: 0; z-index: 200; background: var(--bg);
+  display: grid; place-content: center; justify-items: center; gap: 16px;
+  transition: opacity 0.35s ease;
+}
+.splash.gone { opacity: 0; pointer-events: none; }
+.splash-name { font-size: 26px; font-weight: 900; letter-spacing: -0.8px; }
+
+/* ---- motion ------------------------------------------------------------------
+ *
+ * Everything that arrives, arrives from somewhere: cards rise in the order they
+ * are read, the sidebar slides from the edge it lives on, a sheet grows out of
+ * the middle. Nothing moves for longer than a third of a second, and anyone who
+ * has asked their machine for less movement gets none of it (the block at the
+ * end of this section).
+ */
+
+@keyframes rise    { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop     { 0% { transform: scale(1); } 42% { transform: scale(1.24); } 100% { transform: scale(1); } }
+@keyframes slideL  { from { opacity: 0; transform: translateX(-18px); } to { opacity: 1; transform: none; } }
+@keyframes sheetIn { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes menuIn  { from { opacity: 0; transform: translateY(-6px) scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes toastIn { from { opacity: 0; transform: translate(-50%, 16px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@keyframes float   { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
+@keyframes drift   { from { transform: translate3d(-3%, 0, 0) scale(1); } to { transform: translate3d(3%, 2%, 0) scale(1.08); } }
+@keyframes markIn  { from { opacity: 0; transform: scale(0.82) rotate(-6deg); } to { opacity: 1; transform: none; } }
+
+.page { animation: rise 0.34s cubic-bezier(0.22, 0.9, 0.3, 1) both; }
+.shorts { animation: fade 0.3s ease both; }
+
+/* Each card a beat after the one before it, so a feed fills in rather than
+   appearing all at once. The index is set as --i when the page is built. */
+.grid > *, .shelf > *, .next .row {
+  animation: rise 0.42s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 34ms);
+}
+
+.comment { animation: rise 0.3s cubic-bezier(0.22, 0.9, 0.3, 1) both; }
+.card, .pcard { transition: transform 0.2s cubic-bezier(0.2, 0.9, 0.3, 1); }
+.card:hover, .pcard:hover { transform: translateY(-3px); }
+.pcard:hover { box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22); }
+.thumb { transition: border-radius 0.22s ease; }
+.card:hover .thumb { border-radius: 7px; }
+.thumb video, .thumb img { transition: transform 0.55s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.card:hover .thumb video, .card:hover .thumb img { transform: scale(1.06); }
+.card h3 { transition: color 0.16s ease; }
+.card:hover h3 { color: var(--blue); }
+
+/* A press should be felt. */
+.pill:active, .act:active, .chip:active, .brand-btn:active, .icon-btn:active,
+.sbtn:active, .nav-item:active, .avatar:active { transform: scale(0.955); }
+.pill, .act, .chip, .brand-btn, .icon-btn, .sbtn, .nav-item, .avatar {
+  transition: transform 0.12s ease, background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+/* The thumb that just went blue does a little jump, the way it does in the app. */
+.act.on svg, .sbtn.on .ring svg { animation: pop 0.34s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+.bottom .nav-item.on .i, .rail .nav-item.on .i { animation: pop 0.34s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+
+body.drawer-over .drawer { animation: slideL 0.24s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.scrim { animation: fade 0.2s ease both; }
+.sheet { animation: fade 0.18s ease both; }
+.sheet .card2 { animation: sheetIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.menu { animation: menuIn 0.16s ease both; transform-origin: top right; }
+.toast { animation: toastIn 0.26s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.bar > i { transition: width 0.25s ease; }
+
+/* Waiting for the first page of posts: the shape of the feed, breathing. */
+.sk {
+  border-radius: var(--radius);
+  background: linear-gradient(100deg, var(--bg2) 30%, var(--bg3) 48%, var(--bg2) 66%);
+  background-size: 200% 100%;
+  animation: shimmer 1.25s linear infinite;
+}
+.sk.ph { aspect-ratio: 16 / 9; }
+.sk.ln { height: 12px; border-radius: 6px; margin-top: 10px; }
+.sk.ln.short { width: 55%; }
+
+.splash .mark { animation: markIn 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) both, float 3.2s 0.5s ease-in-out infinite; }
+.splash-name { animation: rise 0.5s 0.1s cubic-bezier(0.22, 0.9, 0.3, 1) both; }
+
+.plus-in .orb { animation: float 4.6s ease-in-out infinite; }
+.plus-wrap::before { animation: drift 16s ease-in-out infinite alternate; }
+.brand-btn { background-size: 160% 100%; transition: background-position 0.4s ease, transform 0.12s ease, opacity 0.2s; }
+.brand-btn:hover:not(:disabled) { background-position: 100% 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- widths ----------------------------------------------------------------- */
+
+.only-narrow { display: none; }
+
+@media (max-width: 860px) {
+  .search { display: none; }
+  .only-narrow { display: grid; }
+  body.searching .search { display: flex; position: absolute; left: 12px; right: 12px; max-width: none; }
+  body.searching .top-l, body.searching .top-r { visibility: hidden; }
+}
+@media (max-width: 620px) {
+  .pill.create span { display: none; }
+  .pill.create { padding: 0 11px; }
+  .page { padding-top: 16px; }
+  /* One at a time on a phone, as in the app — two columns this narrow leaves
+     nothing readable in either. */
+  .grid { gap: 20px 12px; grid-template-columns: 1fr; }
+  .next .row .thumb { flex-basis: 128px; }
+}
+@media (max-width: 420px) {
+  .wordmark { display: none; }
+}

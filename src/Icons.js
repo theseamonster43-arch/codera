@@ -153,3 +153,21 @@ export const Chevron = ({ color, size = 24 }) => (
     <Path d="M9.5 5.5 16 12l-6.5 6.5" {...stroke(color, 2)} />
   </S>
 );
+
+// A framed picture, for setting a banner.
+export const Picture = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Rect x="3" y="4.5" width="18" height="15" rx="3" {...stroke(color, 1.8)} />
+    <Circle cx="8.6" cy="10" r="1.7" {...stroke(color, 1.8)} />
+    <Path d="M3.4 17.2 9 12.3l4 3.3 3.2-2.6 4.4 3.8" {...stroke(color, 1.8)} />
+  </S>
+);
+
+// The badge on a profile picture that says it can be replaced.
+export const Camera = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Path d="M3.5 8.6a2 2 0 0 1 2-2h1.7l1.1-2h7.4l1.1 2h1.7a2 2 0 0 1 2 2v8.9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"
+          {...stroke(color, 1.8)} />
+    <Circle cx="12" cy="12.8" r="3.6" {...stroke(color, 1.8)} />
+  </S>
+);

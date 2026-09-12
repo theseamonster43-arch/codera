@@ -3,6 +3,7 @@ import {
   View, Text, Pressable, ScrollView, StyleSheet, StatusBar, ActivityIndicator, Alert,
   Animated, Easing, useWindowDimensions,
 } from 'react-native';
+import { Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Circle } from 'react-native-svg';
 
@@ -133,7 +134,11 @@ export default function PlusScreen({ navigation }) {
     try {
       // No local state change on success: the new status arrives through
       // usePlus's live listener, so the screen shows what the server recorded.
-      await action();
+      const res = await action();
+      // Subscribing hands back a Stripe checkout address rather than a result:
+      // the card is typed on Stripe's own pages, never inside Codera.
+      const url = res && res.data && res.data.url;
+      if (url) await Linking.openURL(url);
     } catch (e) {
       setErr(
         e?.code === 'functions/unauthenticated' ? 'Sign in again to continue.'

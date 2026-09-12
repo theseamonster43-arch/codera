@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Codera</title>
+<meta name="description" content="Codera on the web — coding tutorials, shorts and posts that run.">
+<meta name="theme-color" content="#080c0a" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f7f6" media="(prefers-color-scheme: light)">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="stylesheet" href="/styles.css">
+<!-- Stripe's own library, which is the only thing allowed to touch a card
+     number. It must come from Stripe, not from a copy of our own. -->
+<script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+
+<!-- Everything below is filled in by app.js. It starts hidden behind the
+     splash so the first paint is the mark, not an empty frame, exactly as the
+     app opens. -->
+
+<header class="top" id="top" hidden>
+  <div class="top-l">
+    <button class="icon-btn" id="menuBtn" aria-label="Menu" title="Menu">
+      <svg viewBox="0 0 24 24" class="i"><path d="M3.5 6.5h17M3.5 12h17M3.5 17.5h17"/></svg>
+    </button>
+    <a class="brand" href="#/" aria-label="Codera home">
+      <span class="mark" id="brandMark"></span>
+      <span class="wordmark">Codera</span>
+      <span class="word-plus" id="plusTag" hidden>PLUS</span>
+    </a>
+  </div>
+
+  <form class="search" id="searchForm" role="search">
+    <input id="searchInput" type="search" placeholder="Search Codera" autocomplete="off" aria-label="Search">
+    <button class="search-go" type="submit" aria-label="Search">
+      <svg viewBox="0 0 24 24" class="i"><circle cx="11" cy="11" r="6.4"/><path d="M16 16l4.5 4.5"/></svg>
+    </button>
+  </form>
+
+  <div class="top-r">
+    <button class="icon-btn only-narrow" id="searchOpen" aria-label="Search">
+      <svg viewBox="0 0 24 24" class="i"><circle cx="11" cy="11" r="6.4"/><path d="M16 16l4.5 4.5"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" aria-label="Appearance" title="Appearance"></button>
+    <button class="pill create" id="createBtn">
+      <svg viewBox="0 0 24 24" class="i"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Create</span>
+    </button>
+    <button class="avatar" id="meBtn" aria-label="Account"></button>
+  </div>
+</header>
+
+<nav class="rail" id="rail" hidden></nav>
+<nav class="drawer" id="drawer" hidden></nav>
+<div class="scrim" id="scrim" hidden></div>
+
+<main id="main" hidden></main>
+
+<nav class="bottom" id="bottom" hidden></nav>
+
+<!-- Sign in takes the whole page: signed out there is nothing to look at,
+     because the rules let nobody read posts. -->
+<div class="gate" id="gate" hidden></div>
+
+<div class="sheet" id="sheet" hidden></div>
+<div class="toast" id="toast" hidden></div>
+
+<div class="splash" id="splash">
+  <span class="mark big" id="splashMark"></span>
+  <span class="splash-name">Codera</span>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

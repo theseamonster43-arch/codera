@@ -71,7 +71,7 @@ async function uploadImage({ uri, mime, uid }) {
  * content:// URIs Android's picker hands back, and silently produces an empty
  * blob — which uploads "successfully" as a zero-byte video.
  */
-function readFile(uri) {
+export function readFile(uri) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.onload = () => resolve(xhr.response);
@@ -88,7 +88,7 @@ function readFile(uri) {
  * The file goes up first and the post is written only once it has a URL, so a
  * failed or abandoned upload never leaves a post pointing at nothing.
  */
-export async function uploadVideo({ uri, kind, title, duration, mime, onProgress }) {
+export async function uploadVideo({ uri, kind, title, description, duration, mime, onProgress }) {
   const who = author();
   const ext = (mime && mime.split('/')[1]) || 'mp4';
   // Under the uploader's own folder, which is what lets the Storage rules say
@@ -118,6 +118,8 @@ export async function uploadVideo({ uri, kind, title, duration, mime, onProgress
     ...who,
     type: kind,              // 'short' | 'video'
     title: title.trim(),
+    // Optional: a few words under the title, shown on the card and the site.
+    description: (description || '').trim() || null,
     videoUrl,
     videoPath: path,
     duration: duration || null,

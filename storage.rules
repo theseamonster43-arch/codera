@@ -25,5 +25,18 @@ service firebase.storage {
 
       allow delete: if request.auth != null && request.auth.uid == uid;
     }
+
+    // The banner and picture someone chose for their own page. Same shape
+    // again: your own folder, pictures only, and small enough to be one.
+    match /profile/{uid}/{file} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 10 * 1024 * 1024;
+
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
   }
 }

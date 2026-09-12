@@ -19,7 +19,7 @@ export const PLUS_INTERVAL = 'month';
  * No payment is taken yet — mirrors TEST_MODE in functions/index.js. Shown on
  * the Plus screen so nobody thinks they have been charged.
  */
-export const PLUS_TEST_MODE = true;
+export const PLUS_TEST_MODE = false;
 
 /** Live Plus status for whoever is signed in. */
 export function usePlus() {
@@ -56,5 +56,10 @@ export function plusDate(ms) {
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-export const subscribePlus = () => httpsCallable(functions, 'plusSubscribe')();
+/**
+ * Starts a subscription. Payment happens on Stripe's own pages in a browser,
+ * so this hands back the address to send someone to rather than a yes or no.
+ */
+export const subscribePlus = () => httpsCallable(functions, 'plusCheckout')();
 export const cancelPlus = () => httpsCallable(functions, 'plusCancel')();
+export const resumePlus = () => httpsCallable(functions, 'plusResume')();

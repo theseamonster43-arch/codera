@@ -11,6 +11,7 @@ import {
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { auth } from '../firebase';
+import { claimUsername, nameKey, NAME_MAX, NAME_OK } from '../profile';
 import { useTheme, F } from '../theme';
 import ButtonFill from '../ButtonFill';
 import Mark from '../Mark';
@@ -58,7 +59,11 @@ export default function SignInScreen() {
 
   async function submit() {
     setErr('');
-    if (up && !name.trim()) return setErr('Enter your name.');
+    if (up && !NAME_OK.test(nameKey(name))) {
+      return setErr(nameKey(name).length < 3
+        ? 'Pick a username of at least 3 characters.'
+        : 'Usernames are letters, numbers and underscores, up to ' + NAME_MAX + '.');
+    }
     if (!email.trim()) return setErr('Enter your email.');
     // Checked here rather than left to Firebase, whose own minimum is six:
     // eight is the floor worth enforcing for an account someone will keep.
@@ -68,8 +73,15 @@ export default function SignInScreen() {
     setBusy('email');
     try {
       if (up) {
-        const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
-        await updateProfile(cred.user, { displayName: name.trim() });
+        // The account has to exist before the name can be claimed: claiming
+        // writes to the database, and the database only listens to accounts.
+        await createUserWithEmailAndPassword(auth, email.trim(), pass);
+        try {
+          await claimUsername(name);
+        } catch (e2) {
+          // Taken in the moment between checking and claiming. The account is
+          // real, so the unskippable prompt asks again from here.
+        }
       } else {
         await signInWithEmailAndPassword(auth, email.trim(), pass);
       }
@@ -138,8 +150,9 @@ export default function SignInScreen() {
           {up && (
             <TextInput
               style={s.input} value={name} onChangeText={setName}
-              placeholder="Name" placeholderTextColor={T.muted}
-              autoComplete="name" textContentType="name"
+              placeholder="Username" placeholderTextColor={T.muted}
+              maxLength={NAME_MAX} autoCapitalize="none" autoCorrect={false}
+              spellCheck={false} autoComplete="username" textContentType="username"
             />
           )}
           <TextInput

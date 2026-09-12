@@ -14,7 +14,9 @@ import CreateMenu from './src/CreateMenu';
 import { GLASS } from './src/ButtonFill';
 import Splash from './src/Splash';
 import { useAdsGate } from './src/ads';
+import { useProfile } from './src/profile';
 import SignInScreen from './src/screens/SignInScreen';
+import ChooseNameScreen from './src/screens/ChooseNameScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ShortsScreen from './src/screens/ShortsScreen';
 import FollowedScreen from './src/screens/FollowedScreen';
@@ -147,6 +149,11 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [splash, setSplash] = useState(true);
 
+  // Everyone has a username. Accounts made before there were any are asked for
+  // one the next time they open Codera, and there is no way past the question.
+  const profile = useProfile(user);
+  const named = !user || (profile.loaded && !!profile.username);
+
   useEffect(() => onAuthStateChanged(auth, u => {
     setUser(u);
     setReady(true);
@@ -173,6 +180,8 @@ export default function App() {
             // Signed out there is no navigator at all, rather than a navigator
             // with guarded screens — so no deep link or back gesture can reach inside.
             <SignInScreen />
+          ) : !named ? (
+            <ChooseNameScreen />
           ) : (
             <NavigationContainer theme={navTheme}>
               <Stack.Navigator screenOptions={{ headerShown: false }}>

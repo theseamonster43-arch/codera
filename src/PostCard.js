@@ -78,6 +78,9 @@ export default function PostCard({ post }) {
       </View>
 
       <Text style={s.title}>{post.title}</Text>
+      {!!post.description && (
+        <Text style={s.desc} numberOfLines={3}>{post.description}</Text>
+      )}
       {!!post.body && <Text style={s.body}>{post.body}</Text>}
 
       {!!post.imageUrl && (
@@ -163,6 +166,7 @@ const styles = T => StyleSheet.create({
   moreTxt: { color: T.muted, fontSize: 13, fontFamily: F['700'], letterSpacing: 1 },
 
   title: { color: T.text, fontSize: 16, fontFamily: F['800'], lineHeight: 22, marginTop: 11 },
+  desc: { color: T.muted, fontSize: 13.5, fontFamily: F['400'], lineHeight: 20, marginTop: 5 },
   body: { color: T.text, fontSize: 14, fontFamily: F['400'], lineHeight: 21, marginTop: 6, opacity: 0.9 },
 
   picture: { height: 220, borderRadius: 12, marginTop: 12, backgroundColor: T.bg3 },

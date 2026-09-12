@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable, StyleSheet, StatusBar, Image } from 'react-native';
+import {
+  View, Text, FlatList, Pressable, StyleSheet, StatusBar, Image, TextInput,
+  ActivityIndicator, Alert, useWindowDimensions,
+} from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -15,6 +19,9 @@ import usePosts from '../usePosts';
 import Mark from '../Mark';
 import PlusChip from '../PlusChip';
 import { usePlus, plusDate, PLUS_PRICE, PLUS_INTERVAL } from '../plus';
+import { useProfile, setProfileImage, clearBanner, setBio, BIO_MAX } from '../profile';
+import Gradient, { BRAND } from '../Gradient';
+import { Picture, Camera } from '../Icons';
 
 /** Your page: who you are, and everything you have posted. */
 export default function YouScreen({ navigation }) {
@@ -25,9 +32,34 @@ export default function YouScreen({ navigation }) {
   const wc = useWindowControls();
   const { posts } = usePosts();
   const plus = usePlus();
+  const profile = useProfile();
+
+  // Which picture is being replaced, if either, and the description while it is
+  // being written (null when it is not).
+  const [busy, setBusy] = useState(null);
+  const [bio, setBioText] = useState(null);
+
+  // The picture's own shape, so the strip chosen on the website is the strip
+  // shown here. React Native has no object-position, so the picture is drawn at
+  // its full scaled height and slid up by the saved amount.
+  const { width: winW } = useWindowDimensions();
+  const [shot, setShot] = useState(null);
+  const bannerUrl = profile.bannerUrl;
+  React.useEffect(() => {
+    if (!bannerUrl) { setShot(null); return undefined; }
+    let live = true;
+    Image.getSize(bannerUrl, (w, h) => { if (live) setShot({ w, h }); }, () => {});
+    return () => { live = false; };
+  }, [bannerUrl]);
+
+  const BANNER_H = 132;
+  const boxW = winW - 28;                       // the banner's own margins
+  const fullH = shot ? Math.max(BANNER_H, (boxW / shot.w) * shot.h) : BANNER_H;
+  const bannerY = typeof profile.bannerY === 'number' ? profile.bannerY : 50;
+  const slide = -((fullH - BANNER_H) * (bannerY / 100));
 
   const me = auth.currentUser;
-  const name = me?.displayName || me?.email?.split('@')[0] || 'You';
+  const name = profile.username || me?.displayName || 'You';
 
   const mine = useMemo(() => posts.filter(p => p.uid === me?.uid), [posts, me?.uid]);
   const counts = useMemo(() => ({
@@ -49,6 +81,49 @@ export default function YouScreen({ navigation }) {
     { id: 'video', label: 'Videos', n: counts.videos },
   ];
 
+  /** Picks one picture and puts it up as the banner or as the profile photo. */
+  async function pickFor(kind) {
+    if (busy) return;
+    const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1, quality: 0.9 });
+    const a = res && res.assets && res.assets[0];
+    if (!a || !a.uri) return;
+    setBusy(kind);
+    try {
+      await setProfileImage(kind, { uri: a.uri, mime: a.type || 'image/jpeg' },
+                            profile[kind + 'Path']);
+    } catch (e) {
+      Alert.alert('Could not save that', 'Check your connection and try again.');
+    }
+    setBusy(null);
+  }
+
+  function bannerMenu() {
+    if (!profile.bannerUrl) return pickFor('banner');
+    Alert.alert('Banner', null, [
+      { text: 'Change banner', onPress: () => pickFor('banner') },
+      {
+        text: 'Remove banner',
+        style: 'destructive',
+        onPress: async () => {
+          setBusy('banner');
+          try { await clearBanner(profile.bannerPath); } catch (e) {}
+          setBusy(null);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  async function saveBio() {
+    const text = bio;
+    setBioText(null);
+    try {
+      await setBio(text);
+    } catch (e) {
+      Alert.alert('Could not save that', 'Check your connection and try again.');
+    }
+  }
+
   async function out() {
     // Google's own session is cleared as well as Firebase's. Otherwise the next
     // "Continue with Google" silently reuses the last account instead of asking,
@@ -58,18 +133,78 @@ export default function YouScreen({ navigation }) {
   }
 
   const header = (
-    <View style={{ paddingTop: insets.top + 16, paddingLeft: wc }}>
-      <View style={s.head}>
-        <View style={s.avatar}>
-          {me?.photoURL
-            ? <Image source={{ uri: me.photoURL }} style={s.photo} />
-            : <Person color={T.muted} size={34} />}
+    <View style={{ paddingTop: insets.top + 10, paddingLeft: wc }}>
+      {/* The banner: your picture if you set one, the brand wash if not. The
+          same one the website shows, because both read the same profile. */}
+      <Pressable onPress={bannerMenu} style={s.bannerWrap}>
+        {profile.bannerUrl
+          ? (
+            <Image
+              source={{ uri: profile.bannerUrl }}
+              style={[s.banner, { height: fullH, transform: [{ translateY: slide }] }]}
+              resizeMode="cover"
+            />
+          )
+          : <Gradient colors={BRAND} style={s.banner} />}
+        <View style={s.bannerBtn}>
+          {busy === 'banner'
+            ? <ActivityIndicator color="#fff" size="small" />
+            : (
+              <>
+                <Picture color="#fff" size={15} />
+                <Text style={s.bannerBtnTxt}>{profile.bannerUrl ? 'Change' : 'Add banner'}</Text>
+              </>
+            )}
         </View>
+      </Pressable>
+
+      <View style={s.head}>
+        <Pressable onPress={() => pickFor('photo')} style={s.avatarWrap}>
+          <View style={s.avatar}>
+            {me?.photoURL
+              ? <Image source={{ uri: me.photoURL }} style={s.photo} />
+              : <Person color={T.muted} size={34} />}
+          </View>
+          <View style={s.camera}>
+            {busy === 'photo'
+              ? <ActivityIndicator color={T.text} size="small" />
+              : <Camera color={T.text} size={14} />}
+          </View>
+        </Pressable>
         <View style={{ flex: 1 }}>
-          <Text style={s.name} numberOfLines={1}>{name}</Text>
-          <Text style={s.sub} numberOfLines={1}>{me?.email}</Text>
+          <View style={s.nameRow}>
+            <Text style={s.name} numberOfLines={1}>{name}</Text>
+            {plus.active && <PlusChip />}
+          </View>
+          <Text style={s.sub} numberOfLines={1}>@{name}</Text>
         </View>
       </View>
+
+      {/* A line about yourself. Optional, and written in place. */}
+      {bio === null ? (
+        <Pressable onPress={() => setBioText(profile.bio || '')} style={s.bioWrap}>
+          {profile.bio
+            ? <Text style={s.bioTxt}>{profile.bio}</Text>
+            : <Text style={s.bioAdd}>Add a description</Text>}
+        </Pressable>
+      ) : (
+        <View style={s.bioWrap}>
+          <TextInput
+            style={s.bioInput} value={bio} onChangeText={setBioText} autoFocus multiline
+            placeholder="Say what you post about." placeholderTextColor={T.muted}
+            maxLength={BIO_MAX} textAlignVertical="top"
+          />
+          <View style={s.bioRow}>
+            <Text style={s.bioLeft}>{BIO_MAX - bio.length} left</Text>
+            <Pressable onPress={() => setBioText(null)} hitSlop={8}>
+              <Text style={s.bioCancel}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={saveBio} hitSlop={8}>
+              <Text style={s.bioSave}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
 
       {/* Counted from what you have actually posted, not stored separately —
           a stored counter drifts the first time a delete fails halfway. */}
@@ -156,10 +291,46 @@ export default function YouScreen({ navigation }) {
 
 const styles = T => StyleSheet.create({
   fill: { flex: 1, backgroundColor: T.bg },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 14, marginHorizontal: 18 },
+  bannerWrap: {
+    marginHorizontal: 14, height: 132, borderRadius: 18, overflow: 'hidden',
+    backgroundColor: T.bg3, borderWidth: 1, borderColor: T.border,
+  },
+  banner: { width: '100%', height: '100%' },
+  bannerBtn: {
+    position: 'absolute', right: 10, bottom: 10, minWidth: 40, height: 30,
+    paddingHorizontal: 11, borderRadius: 15, backgroundColor: 'rgba(0,0,0,0.5)',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  bannerBtnTxt: { color: '#fff', fontSize: 12.5, fontFamily: F['700'] },
+
+  // Pulled up so the picture sits half over the banner, as it does on the site.
+  head: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginHorizontal: 18, marginTop: -26,
+  },
+  avatarWrap: { width: 74, height: 74 },
+  camera: {
+    position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: 13,
+    backgroundColor: T.bg2, borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingTop: 22 },
+  bioWrap: { marginHorizontal: 18, marginTop: 12 },
+  bioTxt: { color: T.muted, fontSize: 14, fontFamily: F['500'], lineHeight: 21 },
+  bioAdd: { color: T.blue, fontSize: 13.5, fontFamily: F['700'] },
+  bioInput: {
+    color: T.text, fontSize: 14, fontFamily: F['500'], lineHeight: 21, minHeight: 74,
+    borderWidth: 1, borderColor: T.border, borderRadius: 12, backgroundColor: T.bg2,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  bioRow: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10 },
+  bioLeft: { flex: 1, color: T.muted, fontSize: 12, fontFamily: F['500'] },
+  bioCancel: { color: T.muted, fontSize: 13.5, fontFamily: F['700'] },
+  bioSave: { color: T.blue, fontSize: 13.5, fontFamily: F['800'] },
+
   avatar: {
-    width: 66, height: 66, borderRadius: 33, backgroundColor: T.bg2,
-    borderWidth: 1, borderColor: T.border, overflow: 'hidden',
+    width: 74, height: 74, borderRadius: 37, backgroundColor: T.bg2,
+    borderWidth: 3, borderColor: T.bg, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   photo: { width: '100%', height: '100%' },
