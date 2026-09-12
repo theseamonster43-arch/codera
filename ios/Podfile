@@ -39,5 +39,19 @@ target 'Codera' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # react-native-bottom-tabs (Apple's native Liquid Glass tab bar) imports
+    # "RCTConversions.h" by bare name. React Native 0.87 no longer copies that
+    # header into Pods/Headers, so the build fails with "file not found"; point
+    # just that pod at React Native's Fabric folder where the header lives.
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-bottom-tabs'
+      target.build_configurations.each do |bc|
+        paths = bc.build_settings['HEADER_SEARCH_PATHS'] || ['$(inherited)']
+        paths = paths.split(' ') if paths.is_a?(String)
+        bc.build_settings['HEADER_SEARCH_PATHS'] =
+          paths + ['"$(PODS_ROOT)/../../node_modules/react-native/React/Fabric"']
+      end
+    end
   end
 end

@@ -11,6 +11,7 @@ import { useTheme, F, clock } from '../theme';
 import { uploadVideo } from '../data';
 import { Shorts, Play } from '../Icons';
 import ButtonFill from '../ButtonFill';
+import useWindowControls from '../windowControls';
 
 /** Shorts are a promise of "under a minute"; the limit is what makes them shorts. */
 const SHORT_MAX = 60;
@@ -29,6 +30,7 @@ export default function ComposeVideoScreen({ navigation, route }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
+  const wc = useWindowControls();
 
   const [asset, setAsset] = useState(null);
   const [title, setTitle] = useState('');
@@ -98,7 +100,7 @@ export default function ComposeVideoScreen({ navigation, route }) {
     <View style={s.fill}>
       <StatusBar barStyle={T.dark ? 'light-content' : 'dark-content'} backgroundColor={T.bg} />
 
-      <View style={[s.bar, { paddingTop: insets.top + 8 }]}>
+      <View style={[s.bar, { paddingTop: insets.top + 8, paddingLeft: 16 + wc }]}>
         <Pressable onPress={() => navigation.goBack()} disabled={uploading} hitSlop={10}>
           <Text style={[s.cancel, uploading && s.dimTxt]}>Cancel</Text>
         </Pressable>

@@ -12,6 +12,7 @@ import useTabSpace, { useNativeTabBar } from '../tabSpace';
 import { Shorts, Person, Play } from '../Icons';
 import { ago } from '../data';
 import Empty from '../Empty';
+import PostActions from '../PostActions';
 import usePosts from '../usePosts';
 import { usePlus } from '../plus';
 import { RULES, takeSponsored, markAdShown, onSponsoredReady } from '../ads';
@@ -133,6 +134,16 @@ export default function ShortsScreen({ navigation }) {
           </View>
         )}
 
+        <View style={[st.rail, { bottom: (underGlass ? tabSpace : 0) + 120 }]}>
+          <PostActions
+            post={item}
+            tone="video"
+            onComment={() => navigation.navigate('Comments', {
+              postId: item.id, postTitle: item.title, postUid: item.uid,
+            })}
+          />
+        </View>
+
         <View style={[st.info, { paddingBottom: (underGlass ? tabSpace : 0) + 18 }]} pointerEvents="none">
           <View style={st.byRow}>
             <View style={st.avatar}>
@@ -196,7 +207,9 @@ const st = StyleSheet.create({
     width: 72, height: 72, borderRadius: 36, backgroundColor: 'rgba(0,0,0,0.45)',
     alignItems: 'center', justifyContent: 'center', paddingLeft: 4,
   },
-  info: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
+  rail: { position: 'absolute', right: 12, alignItems: 'center' },
+  // Room down the right for the rail, so a long title doesn't run under it.
+  info: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingRight: 76 },
   byRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatar: {
     width: 28, height: 28, borderRadius: 14, overflow: 'hidden',

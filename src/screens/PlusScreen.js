@@ -13,6 +13,7 @@ import {
 } from '../plus';
 import { Sparkle, Check, Close } from '../Icons';
 import ButtonFill from '../ButtonFill';
+import useWindowControls from '../windowControls';
 import Gradient, { BRAND } from '../Gradient';
 import Mark from '../Mark';
 import PlusChip from '../PlusChip';
@@ -104,6 +105,7 @@ export default function PlusScreen({ navigation }) {
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
+  const wc = useWindowControls();
   const plus = usePlus();
 
   const [busy, setBusy] = useState(false);
@@ -194,7 +196,7 @@ export default function PlusScreen({ navigation }) {
           instead of leaving an empty band on a tall phone. */}
       <ScrollView
         style={s.flex}
-        contentContainerStyle={[s.body, { paddingTop: insets.top + 8 }]}
+        contentContainerStyle={[s.body, { paddingTop: insets.top + 8, paddingLeft: 20 + wc }]}
         showsVerticalScrollIndicator={false}
       >
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={s.close}

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, StyleSheet, StatusBar, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { signOut } from 'firebase/auth';
@@ -7,6 +7,7 @@ import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { auth } from '../firebase';
 import { useTheme, F } from '../theme';
 import useTabSpace from '../tabSpace';
+import useWindowControls from '../windowControls';
 import { Person, Play, Chevron } from '../Icons';
 import Empty from '../Empty';
 import PostCard from '../PostCard';
@@ -21,6 +22,7 @@ export default function YouScreen({ navigation }) {
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
   const tabSpace = useTabSpace();
+  const wc = useWindowControls();
   const { posts } = usePosts();
   const plus = usePlus();
 
@@ -34,6 +36,19 @@ export default function YouScreen({ navigation }) {
     videos: mine.filter(p => p.type === 'video').length,
   }), [mine]);
 
+  // Which of your things the list is showing.
+  const [tab, setTab] = useState('all');
+  const shown = useMemo(
+    () => (tab === 'all' ? mine : mine.filter(p => p.type === tab)),
+    [mine, tab]);
+
+  const CHOICES = [
+    { id: 'all', label: 'All', n: mine.length },
+    { id: 'post', label: 'Posts', n: counts.posts },
+    { id: 'short', label: 'Shorts', n: counts.shorts },
+    { id: 'video', label: 'Videos', n: counts.videos },
+  ];
+
   async function out() {
     // Google's own session is cleared as well as Firebase's. Otherwise the next
     // "Continue with Google" silently reuses the last account instead of asking,
@@ -43,7 +58,7 @@ export default function YouScreen({ navigation }) {
   }
 
   const header = (
-    <View style={{ paddingTop: insets.top + 16 }}>
+    <View style={{ paddingTop: insets.top + 16, paddingLeft: wc }}>
       <View style={s.head}>
         <View style={s.avatar}>
           {me?.photoURL
@@ -82,7 +97,20 @@ export default function YouScreen({ navigation }) {
         <Chevron color={T.muted} size={18} />
       </Pressable>
 
-      {mine.length > 0 && <Text style={s.section}>Your posts</Text>}
+      {mine.length > 0 && (
+        <View style={s.chooser}>
+          {CHOICES.map(c => {
+            const on = tab === c.id;
+            return (
+              <Pressable key={c.id} onPress={() => setTab(c.id)}
+                         style={[s.chip, on && s.chipOn]}>
+                <Text style={[s.chipTxt, on && s.chipTxtOn]}>{c.label}</Text>
+                <Text style={[s.chipN, on && s.chipTxtOn]}>{c.n}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
     </View>
   );
 
@@ -96,12 +124,20 @@ export default function YouScreen({ navigation }) {
     <View style={s.fill}>
       <StatusBar barStyle={T.dark ? 'light-content' : 'dark-content'} backgroundColor={T.bg} />
       <FlatList
-        data={mine}
+        data={shown}
         keyExtractor={p => p.id}
         renderItem={({ item }) => <PostCard post={item} />}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
         ListEmptyComponent={
+          mine.length > 0 ? (
+            // You have things, just none of this kind.
+            <Text style={s.none}>
+              {tab === 'short' ? "No shorts yet."
+                : tab === 'video' ? "No videos yet."
+                : "No posts yet."}
+            </Text>
+          ) : (
           <Empty
             icon={<Play color={T.green} size={26} />}
             title="You haven't posted yet"
@@ -109,6 +145,7 @@ export default function YouScreen({ navigation }) {
             action="Write a post"
             onAction={() => navigation.navigate('ComposePost')}
           />
+          )
         }
         contentContainerStyle={{ flexGrow: 1, paddingBottom: tabSpace + 24 }}
         showsVerticalScrollIndicator={false}
@@ -149,6 +186,18 @@ const styles = T => StyleSheet.create({
     color: T.muted, fontSize: 11, fontFamily: F['700'], letterSpacing: 1.1,
     textTransform: 'uppercase', marginHorizontal: 18, marginTop: 18, marginBottom: 10,
   },
+  chooser: { flexDirection: 'row', gap: 8, marginHorizontal: 18, marginTop: 18, marginBottom: 12 },
+  chip: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 13, paddingVertical: 8, borderRadius: 10,
+    borderWidth: 1, borderColor: T.border, backgroundColor: T.bg2,
+  },
+  chipOn: { borderColor: T.blue, backgroundColor: 'rgba(59,130,246,0.14)' },
+  chipTxt: { color: T.muted, fontSize: 13, fontFamily: F['700'] },
+  chipN: { color: T.muted, fontSize: 12, fontFamily: F['600'], opacity: 0.8 },
+  chipTxtOn: { color: T.blue },
+  none: { color: T.muted, fontSize: 14, fontFamily: F['500'], textAlign: 'center', marginTop: 26 },
+
   signOut: { alignSelf: 'center', marginTop: 8, paddingVertical: 10, paddingHorizontal: 18 },
   signOutTxt: { color: T.red, fontSize: 14, fontFamily: F['700'] },
 });

@@ -1,0 +1,51 @@
+diff --git a/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift b/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
+index 68053e1..6b5121f 100644
+--- a/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
++++ b/node_modules/react-native-bottom-tabs/ios/TabViewImpl.swift
+@@ -69,6 +69,12 @@ struct TabViewImpl: View {
+         #if os(macOS)
+           tabBar = tabController
+         #else
++          // Codera: iPadOS otherwise puts the tab bar at the top of the screen.
++          // Telling the controller itself it is compact — not just the SwiftUI
++          // view — gives iPad the iPhone-style bottom bar and no top row.
++          if #available(iOS 17.0, *), UIDevice.current.userInterfaceIdiom == .pad {
++            tabController.traitOverrides.horizontalSizeClass = .compact
++          }
+           tabBar = tabController.tabBar
+           updateTabBarAppearance(props: props, tabBar: tabController.tabBar)
+           updateTabBarItemImages(props: props, tabBar: tabController.tabBar)
+@@ -84,6 +90,7 @@ struct TabViewImpl: View {
+       #endif
+       .tintColor(props.selectedActiveTintColor)
+       .getSidebarAdaptable(enabled: props.sidebarAdaptable ?? false)
++      .bottomTabBarOnPad()
+       .onChange(of: props.selectedPage ?? "") { newValue in
+         #if !os(macOS)
+           if props.disablePageAnimations {
+@@ -420,6 +427,25 @@ struct TabViewImpl: View {
+ #endif
+ 
+ extension View {
++  /// Codera: keeps the tab bar at the bottom on iPad.
++  ///
++  /// iPadOS draws a regular-width TabView's bar at the top of the screen.
++  /// Reporting a compact width to the tab view alone gives iPad the same
++  /// bottom Liquid Glass bar as iPhone. iPhones — including the foldable,
++  /// which may lay tabs out at the side — are left exactly as iOS wants.
++  @ViewBuilder
++  func bottomTabBarOnPad() -> some View {
++    #if os(iOS)
++      if UIDevice.current.userInterfaceIdiom == .pad {
++        self.environment(\.horizontalSizeClass, .compact)
++      } else {
++        self
++      }
++    #else
++      self
++    #endif
++  }
++
+   @ViewBuilder
+   func getSidebarAdaptable(enabled: Bool) -> some View {
+     if #available(iOS 18.0, macOS 15.0, tvOS 18.0, visionOS 2.0, *) {

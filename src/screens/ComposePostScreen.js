@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, StatusBar,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { launchImageLibrary } from 'react-native-image-picker';
 
 import { useTheme, F } from '../theme';
 import { createPost } from '../data';
 import ButtonFill from '../ButtonFill';
+import useWindowControls from '../windowControls';
 
 const LANGS = ['JavaScript', 'Python', 'TypeScript', 'Java', 'C++', 'Go', 'Rust', 'Other'];
 
@@ -15,22 +17,30 @@ export default function ComposePostScreen({ navigation }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
+  const wc = useWindowControls();
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [code, setCode] = useState('');
   const [lang, setLang] = useState(null);
+  const [image, setImage] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const canPost = title.trim().length > 0 && (body.trim() || code.trim());
+
+  async function pickImage() {
+    const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1, quality: 0.9 });
+    const a = res?.assets?.[0];
+    if (a?.uri) setImage({ uri: a.uri, mime: a.type || 'image/jpeg' });
+  }
 
   async function post() {
     if (!canPost || busy) return;
     setErr('');
     setBusy(true);
     try {
-      await createPost({ title, body, code, lang: code.trim() ? lang : null });
+      await createPost({ title, body, code, lang: code.trim() ? lang : null, image });
       navigation.goBack();
     } catch (e) {
       setErr(e?.code === 'permission-denied'
@@ -44,7 +54,7 @@ export default function ComposePostScreen({ navigation }) {
     <View style={s.fill}>
       <StatusBar barStyle={T.dark ? 'light-content' : 'dark-content'} backgroundColor={T.bg} />
 
-      <View style={[s.bar, { paddingTop: insets.top + 8 }]}>
+      <View style={[s.bar, { paddingTop: insets.top + 8, paddingLeft: 16 + wc }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10}>
           <Text style={s.cancel}>Cancel</Text>
         </Pressable>
@@ -69,6 +79,20 @@ export default function ComposePostScreen({ navigation }) {
             placeholder="What did you learn, build or break?"
             placeholderTextColor={T.muted} multiline maxLength={4000}
           />
+
+          <Text style={s.label}>Picture</Text>
+          {image ? (
+            <View>
+              <Image source={{ uri: image.uri }} style={s.pic} resizeMode="cover" />
+              <Pressable onPress={() => setImage(null)} style={s.picX} hitSlop={8}>
+                <Text style={s.picXTxt}>Remove picture</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Pressable onPress={pickImage} style={s.add}>
+              <Text style={s.addTxt}>Add a picture</Text>
+            </Pressable>
+          )}
 
           <Text style={s.label}>Code</Text>
           <TextInput
@@ -128,6 +152,14 @@ const styles = T => StyleSheet.create({
     color: T.text, fontSize: 13, lineHeight: 20,
     fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }),
   },
+  add: {
+    borderRadius: 12, borderWidth: 1, borderColor: T.border, backgroundColor: T.bg2,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  addTxt: { color: T.blue, fontSize: 14, fontFamily: F['700'] },
+  pic: { height: 200, borderRadius: 12, backgroundColor: T.bg3 },
+  picX: { alignSelf: 'center', marginTop: 8, paddingVertical: 4, paddingHorizontal: 10 },
+  picXTxt: { color: T.red, fontSize: 13, fontFamily: F['700'] },
   langs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   lang: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 9,

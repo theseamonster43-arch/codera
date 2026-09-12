@@ -115,6 +115,27 @@ export const NoAds = ({ color, size = 24 }) => (
   </S>
 );
 
+// Thumbs, for liking and disliking. The hand is one shape; the dislike is the
+// same drawing turned over.
+const THUMB = 'M7 10.5h2.6l1.9-5a2 2 0 0 1 3.8 1.1l-.6 3.9h4a1.9 1.9 0 0 1 1.9 2.2l-.9 5.5A2.4 2.4 0 0 1 17.4 20H7z';
+const THUMB_BASE = 'M3.2 10.8h3.6v9.2H3.2z';
+
+export const ThumbUp = ({ color, size = 24, filled }) => (
+  <S size={size}>
+    <Path d={THUMB} {...(filled ? { fill: color } : stroke(color, 1.7))} />
+    <Path d={THUMB_BASE} {...(filled ? { fill: color } : stroke(color, 1.7))} />
+  </S>
+);
+
+export const ThumbDown = ({ color, size = 24, filled }) => (
+  <S size={size}>
+    <Path d={THUMB} transform="rotate(180 12 12)"
+          {...(filled ? { fill: color } : stroke(color, 1.7))} />
+    <Path d={THUMB_BASE} transform="rotate(180 12 12)"
+          {...(filled ? { fill: color } : stroke(color, 1.7))} />
+  </S>
+);
+
 export const Check = ({ color, size = 24 }) => (
   <S size={size}>
     <Path d="M5 12.5 9.8 17 19 7.5" {...stroke(color, 2.4)} />

@@ -5,13 +5,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // A counter may only move by one at a time, and never below zero. Posts
+    // written before likes and comments existed have none of these fields, so a
+    // missing counter is read as zero rather than failing the rule outright.
+    function step(was, now) {
+      return now is int && now >= 0 && now >= was - 1 && now <= was + 1;
+    }
+
     // Fields every kind of post carries. The author is whoever is signed in —
     // not whatever the app claims — and the time is the server's, so nobody can
     // post as someone else or pin a post to the top with a date in the future.
     function common(d) {
       return d.uid == request.auth.uid
         && d.createdAt == request.time
-        && d.likeCount == 0
+        && d.likeCount == 0 && d.dislikeCount == 0 && d.commentCount == 0
         && d.title is string && d.title.size() > 0 && d.title.size() <= 120
         && d.authorName is string && d.authorName.size() <= 200
         && (d.authorPhoto == null || d.authorPhoto is string);
@@ -21,7 +28,11 @@ service cloud.firestore {
     function textPost(d) {
       return d.type == 'post'
         && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
-                             'body', 'code', 'lang', 'likeCount', 'createdAt'])
+                             'body', 'code', 'lang', 'imageUrl', 'imagePath',
+                             'likeCount', 'dislikeCount', 'commentCount', 'createdAt'])
+        && (d.imageUrl == null || d.imageUrl is string)
+        && (d.imagePath == null
+            || d.imagePath.matches('images/' + request.auth.uid + '/[^/]+'))
         && d.body is string && d.body.size() <= 4000
         && d.code is string && d.code.size() <= 8000
         && (d.body.size() > 0 || d.code.size() > 0)
@@ -33,7 +44,8 @@ service cloud.firestore {
     function videoPost(d) {
       return d.type in ['short', 'video']
         && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
-                             'videoUrl', 'videoPath', 'duration', 'likeCount', 'createdAt'])
+                             'videoUrl', 'videoPath', 'duration',
+                             'likeCount', 'dislikeCount', 'commentCount', 'createdAt'])
         && d.videoUrl is string
         && d.videoPath is string && d.videoPath.matches('videos/' + request.auth.uid + '/[^/]+')
         && (d.duration == null || d.duration is number);
@@ -46,9 +58,44 @@ service cloud.firestore {
         && common(request.resource.data)
         && (textPost(request.resource.data) || videoPost(request.resource.data));
 
-      // There is no edit screen, so nothing needs updating; only the author can
-      // take a post down.
+      // The only edit anyone can make is to the three counters, and only by one
+      // at a time — the votes and comments behind them have their own rules
+      // below. Nothing else about a post can be changed after it is written.
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['likeCount', 'dislikeCount', 'commentCount'])
+        && step(resource.data.get('likeCount', 0), request.resource.data.get('likeCount', 0))
+        && step(resource.data.get('dislikeCount', 0), request.resource.data.get('dislikeCount', 0))
+        && step(resource.data.get('commentCount', 0), request.resource.data.get('commentCount', 0));
+
+      // Only the author can take a post down.
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // One vote per person per post, and only your own.
+    match /posts/{postId}/votes/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.v in [1, -1]
+        && request.resource.data.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Comments: anyone signed in can read and write their own; the author of
+    // the post can also clear one off their own post.
+    match /posts/{postId}/comments/{commentId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 1000
+        && request.resource.data.keys().hasOnly(['uid', 'authorName', 'authorPhoto',
+                                                 'text', 'createdAt']);
+      allow delete: if request.auth != null
+        && (resource.data.uid == request.auth.uid
+            || get(/databases/$(database)/documents/posts/$(postId)).data.uid == request.auth.uid);
     }
 
     // Each person's account record — for now, their Codera Plus status.

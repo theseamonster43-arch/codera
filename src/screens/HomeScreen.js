@@ -6,7 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme, F } from '../theme';
 import useTabSpace from '../tabSpace';
+import useWindowControls from '../windowControls';
 import { Code, Search } from '../Icons';
+import IconButton from '../IconButton';
 import Mark from '../Mark';
 import Empty from '../Empty';
 import PostCard from '../PostCard';
@@ -18,15 +20,18 @@ export default function HomeScreen({ navigation }) {
   const s = useMemo(() => styles(T), [T]);
   const insets = useSafeAreaInsets();
   const tabSpace = useTabSpace();
+  const wc = useWindowControls();
   const { posts, loading, error } = usePosts();
 
   const feed = useMemo(() => posts.filter(p => p.type !== 'short'), [posts]);
 
   const header = (
-    <View style={[s.head, { paddingTop: insets.top + 10 }]}>
+    <View style={[s.head, { paddingTop: insets.top + 10, paddingLeft: 16 + wc }]}>
       <Mark size={30} />
       <Text style={s.brand}>Codera</Text>
-      <Pressable hitSlop={10}><Search color={T.text} size={22} /></Pressable>
+      <Pressable hitSlop={10}>
+        <IconButton size={38}><Search color={T.text} size={20} /></IconButton>
+      </Pressable>
     </View>
   );
 

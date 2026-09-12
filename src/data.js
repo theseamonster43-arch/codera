@@ -1,6 +1,6 @@
 import {
   collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, limit,
-  serverTimestamp,
+  serverTimestamp, runTransaction, increment, updateDoc,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
@@ -27,17 +27,41 @@ function author() {
 }
 
 /** A text post with an optional code snippet. */
-export async function createPost({ title, body, code, lang }) {
+export async function createPost({ title, body, code, lang, image }) {
+  const who = author();
+  // The picture goes up first: a post is never written pointing at a file
+  // that failed to upload.
+  const picture = image ? await uploadImage({ ...image, uid: who.uid }) : null;
+
   return addDoc(collection(db, POSTS), {
-    ...author(),
+    ...who,
     type: 'post',
     title: title.trim(),
     body: (body || '').trim(),
     code: (code || '').replace(/\s+$/, ''),
     lang: lang || null,
+    imageUrl: picture ? picture.imageUrl : null,
+    imagePath: picture ? picture.imagePath : null,
     likeCount: 0,
+    dislikeCount: 0,
+    commentCount: 0,
     createdAt: serverTimestamp(),
   });
+}
+
+/** Puts one picture in Storage, under the poster's own folder. */
+async function uploadImage({ uri, mime, uid }) {
+  const ext = (mime && mime.split('/')[1]) || 'jpg';
+  const imagePath = 'images/' + uid + '/' + Date.now() + '.' + ext;
+  const blob = await readFile(uri);
+  try {
+    await uploadBytesResumable(ref(storage, imagePath), blob, {
+      contentType: mime || 'image/jpeg',
+    });
+  } finally {
+    if (blob && typeof blob.close === 'function') blob.close();
+  }
+  return { imagePath, imageUrl: await getDownloadURL(ref(storage, imagePath)) };
 }
 
 /**
@@ -98,6 +122,8 @@ export async function uploadVideo({ uri, kind, title, duration, mime, onProgress
     videoPath: path,
     duration: duration || null,
     likeCount: 0,
+    dislikeCount: 0,
+    commentCount: 0,
     createdAt: serverTimestamp(),
   });
 }
@@ -123,7 +149,87 @@ export async function deletePost(post) {
     // The file may already be gone; that must not stop the post being removed.
     try { await deleteObject(ref(storage, post.videoPath)); } catch (e) {}
   }
+  if (post.imagePath) {
+    try { await deleteObject(ref(storage, post.imagePath)); } catch (e) {}
+  }
   await deleteDoc(doc(db, POSTS, post.id));
+}
+
+// ---- Likes and dislikes -----------------------------------------------------
+//
+// One vote per person per post, kept as a document under the post, with the
+// totals on the post itself so a feed doesn't have to count them. Both are
+// written together, so a total can never drift from the votes behind it.
+
+const voteRef = (postId, uid) => doc(db, POSTS, postId, 'votes', uid);
+
+/** Your vote on a post, live: 1 for like, -1 for dislike, 0 for none. */
+export function subscribeMyVote(postId, onChange) {
+  const u = auth.currentUser;
+  if (!u) { onChange(0); return () => {}; }
+  return onSnapshot(voteRef(postId, u.uid),
+    snap => onChange(snap.exists() ? snap.get('v') || 0 : 0),
+    () => onChange(0));
+}
+
+/**
+ * Casts, changes or takes back a vote. Pressing like twice removes the like,
+ * and liking something you disliked moves the vote across in one go.
+ */
+export async function vote(postId, want) {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to vote.');
+
+  await runTransaction(db, async tx => {
+    const mine = await tx.get(voteRef(postId, u.uid));
+    const had = mine.exists() ? mine.get('v') || 0 : 0;
+    const now = had === want ? 0 : want;      // pressing the same one again undoes it
+    if (now === had) return;
+
+    const delta = { likeCount: 0, dislikeCount: 0 };
+    if (had === 1) delta.likeCount -= 1;
+    if (had === -1) delta.dislikeCount -= 1;
+    if (now === 1) delta.likeCount += 1;
+    if (now === -1) delta.dislikeCount += 1;
+
+    if (now === 0) tx.delete(voteRef(postId, u.uid));
+    else tx.set(voteRef(postId, u.uid), { v: now, uid: u.uid, at: serverTimestamp() });
+
+    tx.update(doc(db, POSTS, postId), {
+      likeCount: increment(delta.likeCount),
+      dislikeCount: increment(delta.dislikeCount),
+    });
+  });
+}
+
+// ---- Comments ---------------------------------------------------------------
+
+/** Every comment on a post, oldest first, live. */
+export function subscribeComments(postId, onChange, onError) {
+  const q = query(
+    collection(db, POSTS, postId, 'comments'),
+    orderBy('createdAt', 'asc'), limit(200));
+  return onSnapshot(q, snap => {
+    onChange(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, onError);
+}
+
+export async function addComment(postId, text) {
+  const who = author();
+  const body = text.trim();
+  if (!body) return;
+  await addDoc(collection(db, POSTS, postId, 'comments'), {
+    ...who,
+    text: body.slice(0, 1000),
+    createdAt: serverTimestamp(),
+  });
+  // Kept on the post so a card can show the count without reading the comments.
+  await updateDoc(doc(db, POSTS, postId), { commentCount: increment(1) });
+}
+
+export async function deleteComment(postId, commentId) {
+  await deleteDoc(doc(db, POSTS, postId, 'comments', commentId));
+  await updateDoc(doc(db, POSTS, postId), { commentCount: increment(-1) });
 }
 
 /** "just now", "5m", "3h", "2d", or a date. */

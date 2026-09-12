@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -22,21 +22,22 @@ import YouScreen from './src/screens/YouScreen';
 import ComposePostScreen from './src/screens/ComposePostScreen';
 import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
 import PlusScreen from './src/screens/PlusScreen';
+import CommentsScreen from './src/screens/CommentsScreen';
 
 const Tab = createBottomTabNavigator();
 const NativeTab = createNativeBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 /**
- * Apple's own tab bar on iPhones with Liquid Glass (iOS 26+): the real
- * UITabBar, so it gets the genuine glass capsule, the sliding selection and
- * shrinking on scroll — not a lookalike.
+ * Apple's own tab bar wherever iOS has Liquid Glass (iOS 26+), iPhone and iPad:
+ * the real UITabBar, so it gets the genuine glass capsule, the sliding selection
+ * and shrinking on scroll — not a lookalike.
  *
- * Not on iPad, where iPadOS moves the native tab bar to the top of the screen;
- * the bar belongs at the bottom, so iPad keeps Codera's own bar. Android and
- * older iPhones keep it too.
+ * iPadOS would normally move that bar to the top of the screen; a patch to
+ * react-native-bottom-tabs (patches/) keeps it at the bottom on iPad, like
+ * iPhone. Android and older iOS keep Codera's own bar.
  */
-const NATIVE_TABS = Platform.OS === 'ios' && GLASS && !Platform.isPad;
+const NATIVE_TABS = Platform.OS === 'ios' && GLASS;
 
 // The Create "tab" never shows a page: pressing it opens the create menu.
 const Nothing = () => null;
@@ -51,14 +52,37 @@ function GlassTabs({ navigation }) {
   const T = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // The native bar reports a tab press of its own while it is settling in, which
+  // would open the create menu the moment the app starts. Presses are only taken
+  // as real once the bar has been on screen for a moment.
+  const ready = useRef(false);
+  useEffect(() => {
+    const t = setTimeout(() => { ready.current = true; }, 800);
+    return () => clearTimeout(t);
+  }, []);
+
   const pick = kind => {
     setMenuOpen(false);
     if (kind === 'post') navigation.navigate('ComposePost');
     else navigation.navigate('ComposeVideo', { kind });
   };
 
-  // SF Symbols: Apple's own icons, filled on the page you're on.
-  const icon = (outline, filled) => ({ focused }) => ({ sfSymbol: focused ? filled : outline });
+  // Codera's own icons rather than Apple's SF Symbols: PNGs of the very
+  // drawings in src/Icons.js. They are template images, so iOS tints them, and
+  // the filled one marks the page you're on.
+  const ICON = {
+    Home: [require('./assets/tabicons/home.png'), require('./assets/tabicons/home-filled.png')],
+    Shorts: [require('./assets/tabicons/shorts.png'), require('./assets/tabicons/shorts-filled.png')],
+    Create: [require('./assets/tabicons/plus.png'), require('./assets/tabicons/plus.png')],
+    Followed: [require('./assets/tabicons/followed.png'), require('./assets/tabicons/followed-filled.png')],
+    You: [require('./assets/tabicons/you.png'), require('./assets/tabicons/you-filled.png')],
+  };
+  const icon = name => ({ focused }) => ICON[name][focused ? 1 : 0];
+
+  // Apple's tab bar floats above everything, the create menu included, so a tab
+  // could be pressed straight through the open menu. The bar goes away while
+  // the menu is up, and any press that does land closes the menu first.
+  const closeMenu = { tabPress: () => setMenuOpen(false) };
 
   return (
     <>
@@ -66,23 +90,23 @@ function GlassTabs({ navigation }) {
         labeled={false}
         minimizeBehavior="onScrollDown"
         hapticFeedbackEnabled
+        tabBarHidden={menuOpen}
         tabBarActiveTintColor={T.blue}
         screenOptions={{ sceneStyle: { backgroundColor: T.bg } }}
       >
-        <NativeTab.Screen name="Home" component={HomeScreen}
-          options={{ title: 'Home', tabBarIcon: icon('house', 'house.fill') }} />
-        <NativeTab.Screen name="Shorts" component={ShortsScreen}
-          options={{ title: 'Shorts', tabBarIcon: icon('play.rectangle', 'play.rectangle.fill') }} />
-        <NativeTab.Screen name="Followed" component={FollowedScreen}
-          options={{ title: 'Followed', tabBarIcon: icon('person.2', 'person.2.fill') }} />
-        <NativeTab.Screen name="You" component={YouScreen}
-          options={{ title: 'You', tabBarIcon: icon('person.crop.circle', 'person.crop.circle.fill') }} />
-        {/* The + as its own glass circle, set apart at the end of the bar the
-            way iOS 26 separates a special tab. It never becomes the current
-            page — pressing it opens the create menu. */}
+        <NativeTab.Screen name="Home" component={HomeScreen} listeners={closeMenu}
+          options={{ title: 'Home', tabBarIcon: icon('Home') }} />
+        <NativeTab.Screen name="Shorts" component={ShortsScreen} listeners={closeMenu}
+          options={{ title: 'Shorts', tabBarIcon: icon('Shorts') }} />
+        {/* In the middle with the rest, not set apart: it is one of the bar's
+            items, it just opens the create menu instead of changing page. */}
         <NativeTab.Screen name="Create" component={Nothing}
-          options={{ title: 'Create', role: 'search', preventsDefault: true, tabBarIcon: () => ({ sfSymbol: 'plus' }) }}
-          listeners={{ tabPress: () => setMenuOpen(true) }} />
+          options={{ title: 'Create', preventsDefault: true, tabBarIcon: icon('Create') }}
+          listeners={{ tabPress: () => { if (ready.current) setMenuOpen(true); } }} />
+        <NativeTab.Screen name="Followed" component={FollowedScreen} listeners={closeMenu}
+          options={{ title: 'Followed', tabBarIcon: icon('Followed') }} />
+        <NativeTab.Screen name="You" component={YouScreen} listeners={closeMenu}
+          options={{ title: 'You', tabBarIcon: icon('You') }} />
       </NativeTab.Navigator>
       <CreateMenu native open={menuOpen} onClose={() => setMenuOpen(false)} onPick={pick} />
     </>
@@ -159,6 +183,7 @@ export default function App() {
                   <Stack.Screen name="ComposePost" component={ComposePostScreen} />
                   <Stack.Screen name="ComposeVideo" component={ComposeVideoScreen} />
                   <Stack.Screen name="Plus" component={PlusScreen} />
+                  <Stack.Screen name="Comments" component={CommentsScreen} />
                 </Stack.Group>
               </Stack.Navigator>
             </NavigationContainer>
