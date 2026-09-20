@@ -802,7 +802,7 @@ async function setLinks(list) {
 // locked for everybody, saying so plainly rather than offering a button that
 // couldn't do anything.
 const ADULT_AGE = 18;
-const FACE_CHECKS = false;
+const FACE_CHECKS = true;
 
 let adultAt = null;
 let adultBy = null;
@@ -818,7 +818,9 @@ function watchAge(uid) {
 }
 
 /** Old enough, and checked — the one thing that opens the row. */
-function isAdult() { return adultBy === 'face' && adultAt !== null && Date.now() >= adultAt; }
+function isAdult() {
+  return adultBy !== null && adultBy !== 'self' && adultAt !== null && Date.now() >= adultAt;
+}
 
 function adultAtFrom(dob) {
   const at = new Date(dob.getTime());
@@ -871,9 +873,10 @@ function startAgeCheck() {
   sheet(`
     <h2>Confirm your age</h2>
     <p class="note">Links people add lead off Codera, so opening them — and adding
-      your own — is for ${ADULT_AGE} and over. Yoti, an independent age-check
-      service, estimates your age from your camera. <b>Codera never sees or keeps
-      the picture</b>, and Yoti deletes it once the check is done.</p>
+      your own — is for ${ADULT_AGE} and over. Stripe, who already handle payments
+      here, check a photo ID against a selfie of you. <b>Codera never sees either
+      picture</b> — all we are told is the date of birth on the document, and all
+      we keep is the day you turn ${ADULT_AGE}.</p>
     <p class="note" id="faceErr" hidden style="color:var(--red)"></p>
     <button class="brand-btn" id="faceGo">Start</button>`);
   el('faceGo').onclick = async () => {
@@ -881,7 +884,7 @@ function startAgeCheck() {
     go.disabled = true;
     go.textContent = 'Opening…';
     try {
-      // The page Yoti hosts. Everything that decides the answer happens there
+      // The page Stripe hosts. Everything that decides the answer happens there
       // and comes back to a Cloud Function — nothing this page says counts, so
       // there is nothing here worth lying to.
       const res = await httpsCallable(fns, 'ageStart')();
@@ -2894,6 +2897,7 @@ const KEEPS = new Set(['watch', 'shorts', 'stream', 'golive', 'chat']);
 let painted = null;
 
 function render(force) {
+  if (shutNow) return;
   if (!me) return;
   const r = route();
   const key = r.name + '/' + r.arg;
@@ -4255,6 +4259,7 @@ async function withProvider(provider, btn) {
 }
 
 function paintGate() {
+  if (shutNow) return;
   const up = gateMode === 'up';
   el('gate').innerHTML = `<div class="box">
     <span class="mark">${mark(62)}</span>
@@ -4356,6 +4361,74 @@ function paintGate() {
 // ---------------------------------------------------------------------------
 // Wiring
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Where Codera is open
+// ---------------------------------------------------------------------------
+// Australia set a minimum age of 16 for social platforms in December 2025, and
+// the platform carries the penalty, not the person who signed up. Whether a
+// place for learning to code is caught by that at all turns on an exemption we
+// have not had ruled on yet, and the downside of guessing wrong is roughly
+// AU$49.5m. So Codera stays out until someone qualified says otherwise.
+//
+// This is worked out from the clock and the language the browser is set to,
+// which is a guess, not a border: a VPN or a changed timezone walks straight
+// through it. It is honest about what it is — a closed door, not a wall — and
+// if the answer comes back that Codera is in scope, this has to become a real
+// check against the address the request came from.
+const SHUT = {
+  AU: {
+    where: 'Australia',
+    zones: /^Australia\//i,
+    tags: /-AU$/i,
+  },
+};
+
+function shutHere() {
+  let zone = '';
+  try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* older browser */ }
+  const tags = [navigator.language || ''].concat(navigator.languages || []);
+  for (const code of Object.keys(SHUT)) {
+    const rule = SHUT[code];
+    if (rule.zones.test(zone)) return rule;
+    if (tags.some(t => rule.tags.test(t))) return rule;
+  }
+  return null;
+}
+
+const NO_ENTRY = () => svg('<circle cx="12" cy="12" r="8.6" stroke-width="1.7"/>'
+  + '<path d="M6.1 17.9 17.9 6.1" stroke-width="1.7"/>');
+
+/** Takes the whole page. There is nothing to browse underneath it. */
+function showShut(rule) {
+  document.title = 'Codera isn\u2019t open in ' + rule.where;
+  // Put out of sight rather than taken out: .splash sets its own display, so
+  // the hidden attribute alone would leave it sitting over this page unseen —
+  // but the wiring just below still writes a logo into it, so it has to stay.
+  const splash = el('splash');
+  if (splash) splash.style.display = 'none';
+  for (const id of ['top', 'rail', 'drawer', 'bottom', 'scrim', 'gate']) {
+    const part = document.getElementById(id);
+    if (part) part.hidden = true;
+  }
+  const main = el('main');
+  main.hidden = false;
+  main.innerHTML = '<div class="shut">'
+    + '<span class="shut-ico">' + NO_ENTRY() + '</span>'
+    + '<h1>Codera isn\u2019t open in ' + esc(rule.where) + '</h1>'
+    + '<p>New online safety rules there set a minimum age of 16 for social '
+    + 'platforms. Codera is a place for learning to code, which may well sit '
+    + 'outside those rules \u2014 but we would rather be shut for a while than '
+    + 'be open and wrong about a rule written to keep children safe.</p>'
+    + '<p>We are getting proper advice on it. If it says we are clear, this '
+    + 'page goes away and nothing of yours is lost.</p>'
+    + '<p class="shut-small">Think this is a mistake? Your browser says you are '
+    + 'in ' + esc(rule.where) + '. <a href="/community.html">Community Standards</a> '
+    + '\u00b7 <a href="/privacy.html">Privacy</a> \u00b7 <a href="/terms.html">Terms</a></p>'
+    + '</div>';
+}
+var shutNow = shutHere();
+if (shutNow) showShut(shutNow);
 
 el('brandMark').innerHTML = mark(30);
 el('splashMark').innerHTML = mark(78);

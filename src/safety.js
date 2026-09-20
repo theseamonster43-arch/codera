@@ -68,7 +68,7 @@ export const ADULT_AGE = 18;
  * dormant on every client at once — a gate that opens on one of them isn't a
  * gate. See web/app.js for the long version.
  */
-export const FACE_CHECKS = false;
+export const FACE_CHECKS = true;
 
 /** What we keep: the moment this person turns 18, and who says so. */
 export const useAge = shared((me, emit) => onSnapshot(
@@ -82,7 +82,8 @@ export const useAge = shared((me, emit) => onSnapshot(
 
 /** Old enough, and checked. A date someone typed is never proof. */
 export function isAdult(age) {
-  return !!age && age.by === 'face' && age.adultAt !== null && Date.now() >= age.adultAt;
+  return !!age && age.by !== null && age.by !== 'self'
+    && age.adultAt !== null && Date.now() >= age.adultAt;
 }
 
 export function yearsSince(dob) {

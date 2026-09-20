@@ -54,8 +54,9 @@ exports.payoutsDashboard = tips.payoutsDashboard;
 // exports.screenPost = moderation.screenPost;
 // exports.onReport = moderation.onReport;
 
-// Age checks: starting a Yoti face check, and hearing back about it.
+// Age checks. The result comes back through the Stripe webhook below, so
+// there is nothing to export for it here. age-yoti.js holds the Yoti version,
+// parked until that organisation is verified.
 const age = require('./age');
 
 exports.ageStart = age.ageStart;
-exports.ageNotify = age.ageNotify;

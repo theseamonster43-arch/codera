@@ -308,7 +308,7 @@ service cloud.firestore {
         // that reads Yoti's answer, and admin writes don't come through here.
         && request.resource.data.by == 'self'
         && (!exists(/databases/$(database)/documents/ages/$(uid))
-            || (resource.data.by != 'face'
+            || (resource.data.by == 'self'
                 && request.resource.data.adultAt >= resource.data.adultAt));
       allow delete: if false;
     }

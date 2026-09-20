@@ -527,8 +527,8 @@ async function applySubscription(sub) {
  *
  * Add the address in the Stripe dashboard (Developers → Webhooks):
  *   https://us-central1-codera-46b86.cloudfunctions.net/stripeWebhook
- * listening for checkout.session.completed, customer.subscription.updated and
- * customer.subscription.deleted.
+ * listening for checkout.session.completed, customer.subscription.updated,
+ * customer.subscription.deleted and identity.verification_session.verified.
  */
 exports.stripeWebhook = onRequest(
   { secrets: [STRIPE_SECRET, STRIPE_WEBHOOK_SECRET], cors: false },
@@ -558,6 +558,12 @@ exports.stripeWebhook = onRequest(
       } else if (event.type === 'customer.subscription.updated'
               || event.type === 'customer.subscription.deleted') {
         await applySubscription(event.data.object);
+      } else if (event.type === 'identity.verification_session.verified') {
+        // Required here rather than at the top: age.js reads STRIPE_SECRET from
+        // this file, and two files requiring each other as they load leaves one
+        // of them holding a half-built copy of the other.
+        const said = await require('./age').identityVerified(event.data.object);
+        console.log('[identity]', said);
       }
     } catch (e) {
       // Tell Stripe it did not land, so it tries again rather than dropping it.
