@@ -7,6 +7,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { onAuthStateChanged } from 'firebase/auth';
 
+import { stamp } from './src/safety';
+
 import { auth } from './src/firebase';
 import { useTheme } from './src/theme';
 import TabBar from './src/TabBar';
@@ -161,6 +163,9 @@ export default function App() {
   useEffect(() => onAuthStateChanged(auth, u => {
     setUser(u);
     setReady(true);
+    // Says which build is asking, so the rules can turn away one too old to
+    // know the rules it would be breaking.
+    if (u) stamp(u.uid);
   }), []);
 
   const navTheme = useMemo(() => {

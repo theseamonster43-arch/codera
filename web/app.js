@@ -808,6 +808,19 @@ let adultAt = null;
 let adultBy = null;
 let unsubAge = null;
 
+// Which build this is. A client that doesn't say stops being answered once
+// the floor in the rules is raised above 0 — which is the only way to retire a
+// shipped app, since nothing in an old copy can be reached to fix it.
+const BUILD = 1;
+
+async function stamp(uid) {
+  try {
+    await setDoc(doc(db, 'clients', uid), {
+      platform: 'web', build: BUILD, at: serverTimestamp(),
+    }, { merge: true });
+  } catch (e) { /* refused, most likely for being too old to be here */ }
+}
+
 function watchAge(uid) {
   return onSnapshot(doc(db, 'ages', uid), s => {
     const at = s.exists() ? s.get('adultAt') : null;
@@ -4430,6 +4443,21 @@ function showShut(rule) {
 var shutNow = shutHere();
 if (shutNow) showShut(shutNow);
 
+// The clock is a declaration; the address is evidence. Either one closing the
+// door is enough — the clock catches an address we can't place, and the
+// address catches someone who changed their clock. Asked after the page is
+// already up, so a slow answer never holds the site back; it shuts a moment
+// later if it has to.
+fetch('https://us-central1-codera-46b86.cloudfunctions.net/whereAmI')
+  .then(r => r.json())
+  .then(said => {
+    if (said.shut && !shutNow) {
+      shutNow = SHUT.AU;
+      showShut(shutNow);
+    }
+  })
+  .catch(() => { /* offline, or blocked: the clock check still stands */ });
+
 el('brandMark').innerHTML = mark(30);
 el('splashMark').innerHTML = mark(78);
 applyTheme();
@@ -4653,6 +4681,7 @@ onAuthStateChanged(auth, u => {
     if (!unsubPosts) watchData();
     if (!unsubBlocks) unsubBlocks = watchBlocks(me.uid);
     if (!unsubAge) unsubAge = watchAge(me.uid);
+    stamp(me.uid);
     paintMe();
     // The frame stays up while the profile is read back; if there is no
     // username on it, checkUsername takes the screen over from there.

@@ -58,6 +58,21 @@ export async function report(kind, targetId, aboutUid, reason) {
   });
 }
 
+// ---- which build this is -----------------------------------------------------------
+
+// A phone app that has been installed can never be fixed: an old copy has old
+// rules and nothing here reaches it. Saying which build is asking is what lets
+// the security rules turn one away once the floor is raised above 0.
+export const BUILD = 1;
+
+export async function stamp(uid) {
+  try {
+    await setDoc(doc(db, 'clients', uid), {
+      platform: 'android', build: BUILD, at: serverTimestamp(),
+    }, { merge: true });
+  } catch (e) { /* refused, most likely for being too old to be here */ }
+}
+
 // ---- how old someone is ------------------------------------------------------------
 
 export const MIN_AGE = 13;

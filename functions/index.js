@@ -58,5 +58,7 @@ exports.payoutsDashboard = tips.payoutsDashboard;
 // there is nothing to export for it here. age-yoti.js holds the Yoti version,
 // parked until that organisation is verified.
 const age = require('./age');
+const where = require('./where');
 
 exports.ageStart = age.ageStart;
+exports.whereAmI = where.whereAmI;
