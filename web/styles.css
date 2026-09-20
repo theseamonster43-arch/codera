@@ -1260,3 +1260,11 @@ h1.title .i { width: 1em; height: 1em; }
 .link-row .field { flex: 1; margin: 0; }
 .link-row .field.bad { border-color: var(--red); }
 .link-row .ghost2 { width: 38px; padding: 0; justify-content: center; color: var(--muted); }
+
+/* A bio's links, for someone who hasn't confirmed their age ------------------------- */
+.hid {
+  display: inline-block; padding: 0 7px; border-radius: 6px;
+  background: var(--bg3); color: var(--muted);
+  font-size: 0.86em; font-weight: 700; vertical-align: baseline;
+}
+.bio-warn { color: var(--muted); font-size: 12.5px; font-weight: 600; line-height: 1.5; margin: 8px 0 10px; }

@@ -733,6 +733,50 @@ function linkChip(raw) {
     + ' title="' + esc(title) + '">' + glyph + '<span>' + esc(text) + '</span></a>';
 }
 
+// A description was always free text, and free text is where the links row's
+// rule would leak away: gate the row at 18 and leave "my IG is @me" sitting in
+// a bio, and the gate means nothing. So a bio points nowhere either, for anyone
+// who hasn't proved their age — the same people, by the same rule.
+//
+// Nothing is edited. The words stay exactly as they were written; a reader who
+// isn't a checked adult is simply not shown the part that leads away. Pass the
+// check and the bio reads normally again.
+//
+// The cost is that this occasionally hides something that only looks like an
+// address — a library called socket.io, say. Hiding a package name from a
+// fifteen-year-old is a smaller harm than handing one a way off the site, and
+// the author and any checked adult still see it in full.
+const TLDS = 'com|net|org|io|dev|app|co|me|tv|gg|social|xyz|site|link|page|sh|ai|so'
+  + '|to|gl|be|uk|us|ca|de|fr|in|club|live|online|store|blog|email|chat';
+const LINKISH = new RegExp(
+  '(?:https?:\\/\\/|www\\.)[^\\s]+'            // a written-out address
+  + '|\\b(?:[a-z0-9-]+\\.)+(?:' + TLDS + ')\\b(?:\\/[^\\s]*)?', 'gi');
+const EMAIL_ALL = new RegExp(EMAIL.source, 'gi');
+const PHONE_ALL = new RegExp(PHONE.source, 'g');
+
+// A character nobody can type into a bio, so it can stand in for a hidden run
+// until the text has been escaped and it is safe to put a tag there.
+const HOLE = '\u0000';
+
+/** A bio as it should read for this person. */
+function bioFor(text, show) {
+  const raw = String(text || '');
+  if (show) return esc(raw);
+  const masked = raw
+    .replace(EMAIL_ALL, HOLE)
+    .replace(PHONE_ALL, HOLE)
+    .replace(LINKISH, HOLE)
+    .replace(new RegExp(HOLE + '[\\s,·|/-]*' + HOLE, 'g'), HOLE);   // runs of them read as one
+  return esc(masked).split(HOLE).join('<span class="hid">link hidden</span>');
+}
+
+/** Whether a bio has anything in it that would be hidden. */
+function bioPoints(text) {
+  const raw = String(text || '');
+  EMAIL_ALL.lastIndex = 0; PHONE_ALL.lastIndex = 0; LINKISH.lastIndex = 0;
+  return EMAIL_ALL.test(raw) || PHONE_ALL.test(raw) || LINKISH.test(raw);
+}
+
 async function setLinks(list) {
   await setDoc(doc(db, 'profiles', auth.currentUser.uid), {
     links: list.length ? list.slice(0, MAX_LINKS) : null,
@@ -2010,7 +2054,7 @@ function pageUser(main, arg) {
           ${safetyButtons(uid, name)}
         </div>
       </div>
-      ${prof.bio ? `<div class="bio"><p class="bio-txt">${esc(prof.bio)}</p></div>` : ''}
+      ${prof.bio ? `<div class="bio"><p class="bio-txt">${bioFor(prof.bio, (me && me.uid === uid) || isAdult())}</p></div>` : ''}
       ${linkRow(prof.links, me && me.uid === uid)}
       <div class="chips">${CHOICES.map(c =>
         `<button class="chip${userFilter === c.id ? ' on' : ''}" data-ufilter="${c.id}">${c.label}<span class="n">${c.n}</span></button>`).join('')}</div>
@@ -3326,6 +3370,11 @@ function pageYou(main) {
     <div class="bio" id="bioWrap">
       ${profile.bio
         ? `<p class="bio-txt">${esc(profile.bio)}</p>
+           ${bioPoints(profile.bio) && !isAdult()
+             ? `<p class="bio-warn">Where this points is hidden from anyone who has not
+                 confirmed they are ${ADULT_AGE} or over. Confirm yours, or move it into
+                 your links.</p>`
+             : ''}
            <button class="pill ghost2" id="bioBtn">Edit description</button>`
         : `<button class="pill ghost2" id="bioBtn">Add a description</button>`}
     </div>
