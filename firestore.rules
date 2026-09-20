@@ -5,6 +5,28 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // The lowest build allowed to read anything.
+    //
+    // A shipped app is the one client that can never be fixed. Someone running
+    // last month's desktop build has last month's rules: it doesn't know about
+    // a country we have closed or an age check we have added, and nothing in
+    // the app can reach it. The only thing it can't ignore is this file.
+    //
+    // Every current build stamps clients/{uid} with its number on sign-in. Set
+    // this above 0 and anything that doesn't stamp — which is every build that
+    // already exists — stops being answered. Raise it only once a new build has
+    // been out long enough for people to have it, because it cuts off every
+    // platform at once, the phone app included.
+    //
+    // While it is 0 the first term is true and no extra read is made.
+    function minBuild() { return 0; }
+
+    function current() {
+      return minBuild() == 0
+        || (exists(/databases/$(database)/documents/clients/$(request.auth.uid))
+            && get(/databases/$(database)/documents/clients/$(request.auth.uid)).data.build >= minBuild());
+    }
+
     // A counter may only move by one at a time, and never below zero. Posts
     // written before likes and comments existed have none of these fields, so a
     // missing counter is read as zero rather than failing the rule outright.
@@ -54,7 +76,7 @@ service cloud.firestore {
     }
 
     match /posts/{postId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && current();
 
       allow create: if request.auth != null
         && common(request.resource.data)
@@ -105,7 +127,7 @@ service cloud.firestore {
     // post looks — but only their owner can set them, and only to files in
     // their own Storage folder.
     match /profiles/{uid} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && current();
 
       allow write: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(
@@ -174,7 +196,7 @@ service cloud.firestore {
     // running (the streamer's app beats every few seconds; a silent stream is over). Only the streamer starts and ends one; the counters below it move
     // the way a post's do, one at a time, as people like or dislike it.
     match /streams/{streamId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && current();
 
       allow create: if request.auth != null
         && request.resource.data.uid == request.auth.uid
@@ -311,6 +333,25 @@ service cloud.firestore {
             || (resource.data.by == 'self'
                 && request.resource.data.adultAt >= resource.data.adultAt));
       allow delete: if false;
+    }
+
+    // What each account last ran. Their own row only, and only the shape the
+    // rules above read.
+    match /clients/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['platform', 'build', 'at'])
+        && request.resource.data.platform is string
+        && request.resource.data.platform.size() <= 20
+        && request.resource.data.build is int
+        && request.resource.data.build >= 0;
+    }
+
+    // Read on launch so an old build can bow out with a civil screen rather
+    // than a wall of permission errors. Written from the console, by us.
+    match /config/{doc} {
+      allow read: if true;
+      allow write: if false;
     }
 
     match /users/{uid} {
