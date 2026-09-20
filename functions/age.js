@@ -27,20 +27,36 @@ const path = require('path');
  * turns their answer back into a person, and it lives only on our side.
  */
 
-const YOTI_API_KEY = defineSecret('YOTI_API_KEY');
+// The private key from the Hub. There is no static API key to hold: calls are
+// authorised with a short-lived OAuth token that this key signs for, which is
+// why the .pem is the whole credential and never leaves Secret Manager.
+const YOTI_KEY = defineSecret('YOTI_KEY');
+const YOTI_KEY_SANDBOX = defineSecret('YOTI_KEY_SANDBOX');
 
-// From the Hub, next to the keys. Not a secret: it identifies the service,
-// and Yoti puts it in the URL the browser opens.
-const SDK_ID = 'f82adee2-af2a-4e72-8192-046d14304065';
+// Each service in the Hub has its own id and its own key, sandbox included.
+// Not secret: it names the service, and Yoti puts it in the URL the browser
+// opens. The sandbox one is filled in from the Hub.
+// Which is which was settled by asking Yoti for a token with each key in
+// turn: the sandbox key got past signature checking and the other did not, so
+// this id is the sandbox service's. The live service's id is still to come
+// from the Hub.
+const LIVE_SDK_ID = null;
+const SANDBOX_SDK_ID = 'f82adee2-af2a-4e72-8192-046d14304065';
 
 // Flip to false once the sandbox has done its job. The sandbox has its own
 // base URL, its own signing key, and a way to say "pretend the person passed",
 // which is the only way to test this without standing in front of a camera.
 const SANDBOX = true;
 
+const SDK_ID = SANDBOX ? SANDBOX_SDK_ID : LIVE_SDK_ID;
+const KEY = SANDBOX ? YOTI_KEY_SANDBOX : YOTI_KEY;
+
 const BASE = SANDBOX
   ? 'https://age.yoti.com/sandbox/api/v1'
   : 'https://age.yoti.com/api/v1';
+
+const AUTH_URL = 'https://auth.api.yoti.com/v1/oauth/token';
+const SCOPE = 'avs:sessions:create';
 
 const SITE = 'https://codera-46b86.web.app';
 const NOTIFY = 'https://us-central1-codera-46b86.cloudfunctions.net/ageNotify';
@@ -68,11 +84,71 @@ function yotiKey() {
   return publicKey;
 }
 
+const b64url = buf => Buffer.from(buf).toString('base64')
+  .replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+/**
+ * The assertion that says "I am this service", signed by the service's own
+ * key. PS384 is the only algorithm Yoti accepts, and the salt has to match the
+ * digest length, which is what JWS requires of PS*.
+ */
+function assertion(pem) {
+  const now = Math.floor(Date.now() / 1000);
+  const head = b64url(JSON.stringify({ alg: 'PS384', typ: 'JWT' }));
+  const body = b64url(JSON.stringify({
+    iss: 'sdk:' + SDK_ID,
+    sub: 'sdk:' + SDK_ID,
+    aud: AUTH_URL,
+    jti: crypto.randomUUID(),
+    iat: now,
+    exp: now + 30 * 60,
+  }));
+  const sig = crypto.sign('sha384', Buffer.from(head + '.' + body), {
+    key: pem,
+    padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+    saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+  });
+  return head + '.' + body + '.' + b64url(sig);
+}
+
+/**
+ * A token, kept until it is nearly out of time.
+ *
+ * Yoti are explicit that you must not mint one per request — there is a cap of
+ * 200 live at once per service, and a function that asked for a fresh token
+ * every call would burn through it.
+ */
+let held = { token: null, until: 0 };
+
+async function accessToken(pem) {
+  if (held.token && Date.now() < held.until) return held.token;
+
+  const res = await fetch(AUTH_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: SCOPE,
+      client_assertion_type: 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer',
+      client_assertion: assertion(pem),
+    }),
+  });
+  const text = await res.text();
+  if (!res.ok) throw new Error('yoti auth → ' + res.status + ' ' + text.slice(0, 200));
+
+  const json = JSON.parse(text);
+  if (!json.access_token) throw new Error('yoti auth gave no token');
+  // A minute's grace, so a token can't expire between here and the call.
+  const life = Number(json.expires_in) || 30 * 60;
+  held = { token: json.access_token, until: Date.now() + (life - 60) * 1000 };
+  return held.token;
+}
+
 async function yoti(method, at, body, key) {
   const res = await fetch(BASE + at, {
     method,
     headers: {
-      Authorization: 'Bearer ' + key,
+      Authorization: 'Bearer ' + await accessToken(key),
       'Content-Type': 'application/json',
       'Yoti-Sdk-Id': SDK_ID,
     },
@@ -96,9 +172,11 @@ async function yoti(method, at, body, key) {
  * The token in reference_id is what Yoti will hand back; nothing about the
  * person goes to them, not their uid, not their name, not their email.
  */
-exports.ageStart = onCall({ secrets: [YOTI_API_KEY] }, async req => {
+exports.ageStart = onCall({ secrets: [YOTI_KEY, YOTI_KEY_SANDBOX] }, async req => {
   const uid = req.auth && req.auth.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+  // Better to say so here than to send someone to a page that won't load.
+  if (!SDK_ID) throw new HttpsError('failed-precondition', 'Age checks aren’t switched on yet.');
 
   const token = crypto.randomUUID();
   await db().collection('ageChecks').doc(token).set({
@@ -121,7 +199,7 @@ exports.ageStart = onCall({ secrets: [YOTI_API_KEY] }, async req => {
     retry_enabled: true,
     resume_enabled: true,
     synchronous_checks: true,
-  }, YOTI_API_KEY.value());
+  }, KEY.value());
 
   await db().collection('ageChecks').doc(token).update({ session: session.id });
 
@@ -137,7 +215,7 @@ exports.ageStart = onCall({ secrets: [YOTI_API_KEY] }, async req => {
  * Sandbox only: says what Yoti should pretend happened, so the whole path —
  * notification, signature, the record it writes — can be tested without a face.
  */
-exports.ageMock = onCall({ secrets: [YOTI_API_KEY] }, async req => {
+exports.ageMock = onCall({ secrets: [YOTI_KEY, YOTI_KEY_SANDBOX] }, async req => {
   if (!SANDBOX) throw new HttpsError('failed-precondition', 'Only in the sandbox.');
   const uid = req.auth && req.auth.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
@@ -157,7 +235,7 @@ exports.ageMock = onCall({ secrets: [YOTI_API_KEY] }, async req => {
     // threshold the session was created with.
     age: pass ? THRESHOLD + 1 : THRESHOLD - 5,
     method: 'AGE_ESTIMATION',
-  }, YOTI_API_KEY.value());
+  }, KEY.value());
 
   return { ok: true };
 });
@@ -189,7 +267,7 @@ function signed(body) {
  * about is one it will send again, and again. Whether it changed anything is a
  * separate question from whether it was received.
  */
-exports.ageNotify = onRequest({ secrets: [YOTI_API_KEY] }, async (req, res) => {
+exports.ageNotify = onRequest({ secrets: [YOTI_KEY, YOTI_KEY_SANDBOX] }, async (req, res) => {
   const done = (why) => { console.log('[ageNotify]', why); res.status(200).send('ok'); };
 
   if (req.method !== 'POST') return done('not a post');
