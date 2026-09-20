@@ -830,8 +830,28 @@ function startAgeCheck() {
       your own — is for ${ADULT_AGE} and over. Yoti, an independent age-check
       service, estimates your age from your camera. <b>Codera never sees or keeps
       the picture</b>, and Yoti deletes it once the check is done.</p>
+    <p class="note" id="faceErr" hidden style="color:var(--red)"></p>
     <button class="brand-btn" id="faceGo">Start</button>`);
-  el('faceGo').onclick = () => toast('Not yet — this opens shortly.');
+  el('faceGo').onclick = async () => {
+    const go = el('faceGo');
+    go.disabled = true;
+    go.textContent = 'Opening…';
+    try {
+      // The page Yoti hosts. Everything that decides the answer happens there
+      // and comes back to a Cloud Function — nothing this page says counts, so
+      // there is nothing here worth lying to.
+      const res = await httpsCallable(fns, 'ageStart')();
+      closeSheet();
+      window.open(res.data.url, '_blank', 'noopener');
+      toast('Finish the check in the new tab. This page updates by itself.');
+    } catch (e) {
+      const err = el('faceErr');
+      err.textContent = message(e);
+      err.hidden = false;
+      go.disabled = false;
+      go.textContent = 'Start';
+    }
+  };
 }
 
 /** The button under a locked row, wherever that row was drawn. */

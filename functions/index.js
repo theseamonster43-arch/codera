@@ -41,7 +41,21 @@ exports.payoutsStatus = tips.payoutsStatus;
 exports.payoutsDashboard = tips.payoutsDashboard;
 
 // Community Standards: every new post screened, and reports acted on.
-const moderation = require('./moderation');
+//
+// Not exported yet. Firebase refuses to deploy anything at all while a secret
+// a function asks for is missing, so leaving these on would hold up every
+// other function behind ANTHROPIC_API_KEY. The code is finished and dormant
+// either way — web/app.js keeps MODERATION_START in the future until screening
+// goes live. Put the key in and uncomment these two lines:
+//
+//   firebase functions:secrets:set ANTHROPIC_API_KEY --project codera-46b86
+//
+// const moderation = require('./moderation');
+// exports.screenPost = moderation.screenPost;
+// exports.onReport = moderation.onReport;
 
-exports.screenPost = moderation.screenPost;
-exports.onReport = moderation.onReport;
+// Age checks: starting a Yoti face check, and hearing back about it.
+const age = require('./age');
+
+exports.ageStart = age.ageStart;
+exports.ageNotify = age.ageNotify;
