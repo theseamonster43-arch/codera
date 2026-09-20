@@ -9,6 +9,7 @@ import {
   GoogleAuthProvider, signInWithCredential,
 } from 'firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { signInThroughBrowser } from '../handoff';
 
 import { auth } from '../firebase';
 import { claimUsername, nameKey, NAME_MAX, NAME_OK } from '../profile';
@@ -116,6 +117,21 @@ export default function SignInScreen() {
     }
   }
 
+  // GitHub signs in through the browser and comes back through codera://auth.
+  async function github() {
+    setErr('');
+    setBusy('github');
+    try {
+      await signInThroughBrowser('github');
+    } catch (e) {
+      setErr(e?.code === 'auth/account-exists-with-different-credential'
+        ? 'You already have a Codera account with that email. Sign in the way you did before.'
+        : message(e));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <View style={s.fill}>
       <StatusBar barStyle={T.dark ? 'light-content' : 'dark-content'} backgroundColor={T.bg} />
@@ -141,6 +157,12 @@ export default function SignInScreen() {
             {busy === 'google'
               ? <ActivityIndicator color={T.text} />
               : <Text style={s.googleTxt}>Continue with Google</Text>}
+          </Pressable>
+
+          <Pressable style={[s.google, s.second]} onPress={github} disabled={!!busy}>
+            {busy === 'github'
+              ? <ActivityIndicator color={T.text} />
+              : <Text style={s.googleTxt}>Continue with GitHub</Text>}
           </Pressable>
 
           <View style={s.orRow}>
@@ -212,6 +234,7 @@ const styles = T => StyleSheet.create({
     backgroundColor: T.bg2, alignItems: 'center', justifyContent: 'center',
   },
   googleTxt: { color: T.text, fontSize: 15, fontFamily: F['700'] },
+  second: { marginTop: 10 },
 
   orRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 20 },
   line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: T.border },

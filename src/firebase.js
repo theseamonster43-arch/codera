@@ -54,5 +54,11 @@ export const db = makeDb();
 
 export const storage = getStorage(app);
 
-// Same region the functions are deployed to (functions/index.js).
-export const functions = getFunctions(app, 'us-central1');
+// The functions' full address, not just their region (us-central1, as in
+// functions/index.js). Firebase tells a region from a custom domain by trying
+// `new URL(value)` and expecting a bare region to throw — which it does in a
+// browser, but React Native's own URL does not. It "parses" 'us-central1', so
+// Firebase takes it for a domain with an empty origin and calls "/plusIntent":
+// a relative address that fails at once, before anything leaves the phone.
+// Giving the whole origin avoids the guess entirely.
+export const functions = getFunctions(app, 'https://us-central1-codera-46b86.cloudfunctions.net');

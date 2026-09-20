@@ -12,9 +12,10 @@ import { useNavigation } from '@react-navigation/native';
 import { Play, Person } from './Icons';
 import PostActions from './PostActions';
 import { beforeVideo } from './ads';
+import { nudgePost, WEIGHT } from './social';
 
 /** What the ••• menu calls the thing you are about to delete. */
-const KIND = { post: 'post', short: 'short', video: 'video' };
+const KIND = { post: 'post', short: 'short', video: 'video', live: 'stream' };
 
 /** A post, a short or a video in a feed. */
 export default function PostCard({ post }) {
@@ -31,7 +32,7 @@ export default function PostCard({ post }) {
 
   const mine = auth.currentUser?.uid === post.uid;
   const isShort = post.type === 'short';
-  const hasVideo = isShort || post.type === 'video';
+  const hasVideo = isShort || post.type === 'video' || post.type === 'live';
 
   // Any ad comes before the video begins, never partway through it. Almost
   // always there's none due and this starts the video immediately.
@@ -43,6 +44,8 @@ export default function PostCard({ post }) {
     } finally {
       setStarting(false);
       setPlaying(true);
+      // What someone chooses to watch is what the feed learns from.
+      nudgePost(post, WEIGHT.watch, 'watch:' + post.id);
     }
   }
 
@@ -60,12 +63,16 @@ export default function PostCard({ post }) {
   return (
     <View style={s.card}>
       <View style={s.head}>
-        <View style={s.avatar}>
-          {post.authorPhoto
-            ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
-            : <Person color={T.muted} size={16} />}
-        </View>
-        <Text style={s.author} numberOfLines={1}>{post.authorName}</Text>
+        {/* The author's picture and name open their page. */}
+        <Pressable style={s.by} hitSlop={6} onPress={() => nav.navigate('User', { uid: post.uid })}
+                   accessibilityRole="link" accessibilityLabel={post.authorName + '’s page'}>
+          <View style={s.avatar}>
+            {post.authorPhoto
+              ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
+              : <Person color={T.muted} size={16} />}
+          </View>
+          <Text style={s.author} numberOfLines={1}>{post.authorName}</Text>
+        </Pressable>
         <Text style={s.time}>{ago(post.createdAt)}</Text>
         {mine && (
           // Only on your own posts. The menu itself is the confirmation:
@@ -105,6 +112,7 @@ export default function PostCard({ post }) {
             <>
               <View style={s.playBtn}><Play color="#fff" size={26} /></View>
               {isShort && <View style={s.tag}><Text style={s.tagTxt}>SHORT</Text></View>}
+              {post.type === 'live' && <View style={[s.tag, s.streamTag]}><Text style={s.tagTxt}>STREAM</Text></View>}
               {post.duration ? (
                 <View style={s.len}><Text style={s.lenTxt}>{clock(post.duration)}</Text></View>
               ) : null}
@@ -155,6 +163,8 @@ const styles = T => StyleSheet.create({
     borderRadius: 16, marginHorizontal: 14, marginBottom: 12, padding: 14,
   },
   head: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  by: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1 },
+  streamTag: { backgroundColor: T.red },
   avatar: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: T.bg3, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',

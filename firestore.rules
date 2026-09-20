@@ -42,7 +42,7 @@ service cloud.firestore {
     // A short or a video. The file must sit in the poster's own folder, so a
     // post cannot claim someone else's upload as its own.
     function videoPost(d) {
-      return d.type in ['short', 'video']
+      return d.type in ['short', 'video', 'live']
         && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
                              'videoUrl', 'videoPath', 'duration', 'description',
                              'likeCount', 'dislikeCount', 'commentCount', 'createdAt'])
@@ -110,7 +110,13 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(
              ['bannerUrl', 'bannerPath', 'bannerY', 'photoUrl', 'photoPath',
-              'bio', 'username', 'updatedAt'])
+              'bio', 'links', 'username', 'updatedAt'])
+        // Where else this person can be found. Five at most, and each one has
+        // to be short enough to read; the app checks where they lead.
+        && (!('links' in request.resource.data)
+            || request.resource.data.links == null
+            || (request.resource.data.links is list
+                && request.resource.data.links.size() <= 5))
         && (!('username' in request.resource.data)
             || (request.resource.data.username is string
                 && request.resource.data.username.size() >= 3
@@ -148,10 +154,165 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
+    // Who follows whom. The id is '<follower>_<followed>', so one person can only
+    // ever hold one follow of another, and only their own.
+    match /follows/{pair} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['from', 'to', 'at'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && request.resource.data.at == request.time
+        && pair == request.auth.uid + '_' + request.resource.data.to;
+
+      allow delete: if request.auth != null && resource.data.from == request.auth.uid;
+    }
+
+    // A live stream: who is on air, what they called it, and whether it is still
+    // running (the streamer's app beats every few seconds; a silent stream is over). Only the streamer starts and ends one; the counters below it move
+    // the way a post's do, one at a time, as people like or dislike it.
+    match /streams/{streamId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.live == true
+        && request.resource.data.likeCount == 0 && request.resource.data.dislikeCount == 0
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 120
+        && request.resource.data.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'title',
+                                                 'live', 'watching', 'likeCount', 'dislikeCount',
+                                                 'startedAt', 'endedAt', 'beat']);
+
+      allow update: if request.auth != null
+        && ((resource.data.uid == request.auth.uid
+             && request.resource.data.diff(resource.data).affectedKeys()
+                  .hasOnly(['live', 'watching', 'endedAt', 'beat', 'title', 'likeCount', 'dislikeCount']))
+            || request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['likeCount', 'dislikeCount']))
+        && step(resource.data.get('likeCount', 0), request.resource.data.get('likeCount', 0))
+        && step(resource.data.get('dislikeCount', 0), request.resource.data.get('dislikeCount', 0));
+
+      allow delete: if request.auth != null && resource.data.uid == request.auth.uid;
+    }
+
+    // One like or dislike per person per stream, as on a post.
+    match /streams/{streamId}/votes/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.v in [1, -1]
+        && request.resource.data.uid == uid;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // The chat beside a stream. Anyone signed in can say something as themselves;
+    // the streamer can clear anything off their own stream. A tip is money, so a
+    // message can only claim one if the payment webhook wrote it.
+    match /streams/{streamId}/chat/{msgId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 300
+        && request.resource.data.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'text', 'at']);
+
+      allow delete: if request.auth != null
+        && (resource.data.uid == request.auth.uid
+            || get(/databases/$(database)/documents/streams/$(streamId)).data.uid == request.auth.uid);
+    }
+
+    // How a viewer and a streamer find each other: the browser's own connection
+    // details, left for the other side to pick up. Readable and writable by the
+    // viewer they belong to and by whoever is streaming.
+    function streamHost(streamId) {
+      return get(/databases/$(database)/documents/streams/$(streamId)).data.uid;
+    }
+
+    match /streams/{streamId}/peers/{viewer} {
+      allow read, write: if request.auth != null
+        && (request.auth.uid == viewer || request.auth.uid == streamHost(streamId));
+
+      match /{side}/{candidate} {
+        allow read, write: if request.auth != null
+          && (request.auth.uid == viewer || request.auth.uid == streamHost(streamId));
+      }
+    }
+
+    // Whether a streamer can be tipped: their Stripe payout account is set up.
+    // Anyone signed in can read it (it decides whether the Tip button shows);
+    // only the Cloud Functions write it, after asking Stripe.
+    match /payouts/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // What someone watches, kept for them alone: a handful of subjects with a
+    // score each, which is how the feed knows to put Python before Rust.
+    match /taste/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().size() <= 60;
+    }
+
     // Each person's account record — for now, their Codera Plus status.
     // Readable only by its owner. Nothing in the app may write it: Plus is
     // switched on and off by the plusSubscribe / plusCancel Cloud Functions, so
     // it can't be granted by crafting a request.
+    // Reports under the Community Standards: anyone signed in can report a post,
+    // once. The app never reads them back; the onReport function counts them and
+    // holds a post that enough people have reported.
+    // Who you've blocked: only you can read or change your own list, and the
+    // apps use it to keep you and them apart.
+    match /blocks/{blockId} {
+      allow read: if request.auth != null && resource.data.from == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['from', 'to', 'at'])
+        && request.resource.data.from == request.auth.uid
+        && request.resource.data.to is string
+        && request.resource.data.to != request.auth.uid
+        && blockId == request.auth.uid + '_' + request.resource.data.to
+        && request.resource.data.at == request.time;
+      allow delete: if request.auth != null && resource.data.from == request.auth.uid;
+    }
+
+    match /reports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['postId', 'kind', 'uid', 'reason', 'at'])
+        && (!('kind' in request.resource.data) || request.resource.data.kind in ['post', 'user', 'stream', 'chat'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.postId is string
+        && reportId == request.resource.data.postId + '_' + request.auth.uid
+        && request.resource.data.reason in ['off_topic', 'inappropriate', 'spam', 'harassment', 'other']
+        && request.resource.data.at == request.time
+        && (request.resource.data.get('kind', 'post') != 'post'
+            || exists(/databases/$(database)/documents/posts/$(request.resource.data.postId)));
+    }
+
+    // One number each: the moment this person turns 18, which is what decides
+    // whether links off Codera open for them. Nobody else can read it. It can
+    // be moved later — owning up to being younger — but never earlier.
+    match /ages/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['adultAt', 'by', 'setAt'])
+        && request.resource.data.adultAt is int
+        && request.resource.data.setAt == request.time
+        // Only ever their own word for it. 'face' is written by the function
+        // that reads Yoti's answer, and admin writes don't come through here.
+        && request.resource.data.by == 'self'
+        && (!exists(/databases/$(database)/documents/ages/$(uid))
+            || (resource.data.by != 'face'
+                && request.resource.data.adultAt >= resource.data.adultAt));
+      allow delete: if false;
+    }
+
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;

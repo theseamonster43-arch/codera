@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { subscribePosts } from './data';
+import { useBlocked } from './safety';
 
 /**
  * One live subscription shared by every screen.
@@ -26,6 +27,7 @@ function start() {
 
 export default function usePosts() {
   const [snap, setSnap] = useState(state);
+  const blocked = useBlocked();
 
   useEffect(() => {
     listeners.add(setSnap);
@@ -41,5 +43,11 @@ export default function usePosts() {
     };
   }, []);
 
-  return snap;
+  // Filtered here rather than in the query: Firestore can't ask for "not in
+  // this list" beyond ten entries, and a block should take effect the moment
+  // it is made, not on the next fetch.
+  return useMemo(
+    () => (blocked.size ? { ...snap, posts: snap.posts.filter(p => !blocked.has(p.uid)) } : snap),
+    [snap, blocked],
+  );
 }

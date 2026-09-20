@@ -10,8 +10,9 @@ import Svg, { Defs, RadialGradient, LinearGradient, Stop, Rect, Circle } from 'r
 import { useTheme, F } from '../theme';
 import {
   usePlus, plusDate, subscribePlus, cancelPlus,
-  PLUS_PRICE, PLUS_INTERVAL, PLUS_TEST_MODE,
+  PLUS_PRICE, PLUS_INTERVAL, PLUS_TEST_MODE, IN_APP_PAYMENTS,
 } from '../plus';
+import { ask, tell } from '../Sheet';
 import { Sparkle, Check, Close } from '../Icons';
 import ButtonFill from '../ButtonFill';
 import useWindowControls from '../windowControls';
@@ -139,26 +140,45 @@ export default function PlusScreen({ navigation }) {
       // the card is typed on Stripe's own pages, never inside Codera.
       const url = res && res.data && res.data.url;
       if (url) await Linking.openURL(url);
+      return true;
     } catch (e) {
+      // Kept in the log: the message on screen is written for people, not for
+      // working out what actually went wrong.
+      console.warn('[plus]', e?.code, e?.message);
       setErr(
         e?.code === 'functions/unauthenticated' ? 'Sign in again to continue.'
-          : e?.code === 'functions/failed-precondition' ? e.message
+          // The SDK tacks the HTTP status onto the end, as in 'You already have
+          // Plus. [400]'; that is for us, not for the person reading it.
+          : e?.code === 'functions/failed-precondition' ? String(e.message).replace(/\s*\[\d+\]$/, '')
+          // From Stripe's sheet: a declined card, a wrong number. Written for
+          // the person holding the card, so shown as it is.
+          : e?.localizedMessage || e?.message && e?.code && !String(e.code).startsWith('functions/')
+            ? (e.localizedMessage || e.message)
           : "Couldn't reach Codera. Check your connection and try again.",
       );
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   const date = plusDate(plus.endsAt);
-  const confirmCancel = () => Alert.alert(
-    'Cancel Codera Plus?',
-    `You'll keep Plus until ${date}.`,
-    [
-      { text: 'Keep Plus', style: 'cancel' },
-      { text: 'Cancel Plus', style: 'destructive', onPress: () => run(cancelPlus) },
-    ],
-  );
+  const confirmCancel = async () => {
+    const yes = await ask({
+      title: 'Cancel Codera Plus?',
+      body: `You keep Plus until ${date}, and nothing more is charged after that.`,
+      yes: 'Cancel Plus',
+      no: 'Keep Plus',
+      danger: true,
+    });
+    if (!yes) return;
+    if (!(await run(cancelPlus))) return;
+    await tell({
+      title: 'Plus is cancelled',
+      body: `It stays on until ${date}. You can subscribe again any time before then.`,
+      ok: 'OK',
+    });
+  };
 
   // What sits in the card's corner once you're a member.
   const pill = !plus.active ? null
@@ -167,28 +187,52 @@ export default function PlusScreen({ navigation }) {
 
   // The line under the button. A test subscription never renews, so it never
   // claims to.
-  const note = plus.cancelled ? `Plus stays until ${date}. Resume any time before then.`
-    : plus.active ? (plus.test ? `Active until ${date}.` : `Renews ${date}.`)
-    : 'Renews monthly. Cancel anytime.';
+  const note = plus.cancelled
+    ? `Plus stays until ${date}. Subscribe again and nothing is charged until then.`
+    : plus.active ? `Renews ${date}.`
+    : IN_APP_PAYMENTS
+      ? 'Card details go straight to Stripe. Codera never sees them.'
+      // On iOS payment happens on Codera's website, in the phone's own
+      // browser: the App Store allows nothing else for a subscription.
+      : 'Opens codera-46b86.web.app to pay. Plus switches on here by itself.';
 
   let action;
   if (plus.loading) {
     action = <View style={s.btnSpace}><ActivityIndicator color={T.blue} /></View>;
   } else if (!plus.active || plus.cancelled) {
-    const label = plus.cancelled ? 'Resume Plus' : `Subscribe for ${PLUS_PRICE}/${PLUS_INTERVAL}`;
+    const label = plus.cancelled ? 'Subscribe again'
+      : IN_APP_PAYMENTS ? `Subscribe for ${PLUS_PRICE}/${PLUS_INTERVAL}`
+      : `Subscribe on the web · ${PLUS_PRICE}/${PLUS_INTERVAL}`;
+    // Coming back after cancelling is a purchase like any other — card and
+    // confirmation — billed from the end of the month already paid for. On iOS
+    // that happens on the website, like every other payment there.
+    // Android pays on Codera's own checkout screen; iOS pays on the website.
+    const start = IN_APP_PAYMENTS ? () => navigation.navigate('Checkout', { mode: 'pay' })
+      : plus.cancelled ? () => Linking.openURL('https://codera-46b86.web.app/#/plus')
+      : subscribePlus;
     action = (
-      <Pressable onPress={() => run(subscribePlus)} disabled={busy}>
+      <Pressable onPress={() => (IN_APP_PAYMENTS ? start() : run(start))} disabled={busy}>
         <ButtonFill colors={BRAND} style={[s.btn, busy && s.dim]}>
           {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnTxt}>{label}</Text>}
         </ButtonFill>
       </Pressable>
     );
   } else {
-    // Already a member: nothing to sell, so no big button — just a quiet way out.
+    // Already a member: nothing to sell, so no big button — a way to change the
+    // card it is charged to, and a quiet way out. On iOS the card lives on the
+    // website, like every other payment there.
+    const changeCard = IN_APP_PAYMENTS
+      ? () => navigation.navigate('Checkout', { mode: 'card', nextCharge: plus.endsAt })
+      : () => Linking.openURL('https://codera-46b86.web.app/#/plus');
     action = (
-      <Pressable onPress={confirmCancel} disabled={busy} style={[s.btnQuiet, busy && s.dim]}>
-        {busy ? <ActivityIndicator color={T.red} /> : <Text style={s.btnQuietTxt}>Cancel Plus</Text>}
-      </Pressable>
+      <View style={s.memberRow}>
+        <Pressable onPress={changeCard} disabled={busy} style={[s.btnQuiet, s.memberBtn, busy && s.dim]}>
+          <Text style={s.btnCardTxt}>Change card</Text>
+        </Pressable>
+        <Pressable onPress={confirmCancel} disabled={busy} style={[s.btnQuiet, s.memberBtn, busy && s.dim]}>
+          {busy ? <ActivityIndicator color={T.red} /> : <Text style={s.btnQuietTxt}>Cancel Plus</Text>}
+        </Pressable>
+      </View>
     );
   }
 
@@ -347,6 +391,9 @@ const styles = T => StyleSheet.create({
     backgroundColor: T.bg2, alignItems: 'center', justifyContent: 'center',
   },
   btnQuietTxt: { color: T.red, fontSize: 15.5, fontFamily: F['700'] },
+  memberRow: { flexDirection: 'row', gap: 10 },
+  memberBtn: { flex: 1 },
+  btnCardTxt: { color: T.text, fontSize: 15.5, fontFamily: F['700'] },
   dim: { opacity: 0.5 },
   note: { color: T.muted, fontSize: 12.5, fontFamily: F['400'], textAlign: 'center', marginTop: 10 },
   test: { color: T.muted, fontSize: 11.5, fontFamily: F['400'], textAlign: 'center', marginTop: 3, opacity: 0.8 },

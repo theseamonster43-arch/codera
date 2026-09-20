@@ -111,12 +111,17 @@ export default function ShortsScreen({ navigation }) {
       );
     }
     const isActive = index === active;
+    // A short is a tall picture. In a wide window — an iPad, a Vision Pro
+    // window, a phone held open — it keeps its shape in the middle of the
+    // screen rather than being cropped to the width.
+    const stage = Math.min(width, Math.round(pageH * 9 / 16));
     return (
       <Pressable style={{ height: pageH, width, backgroundColor: '#000' }}
                  onPress={() => setPaused(p => !p)}>
+        {/* The one either side is mounted too, paused, so the next swipe
+            starts playing immediately instead of showing a black frame. */}
         {Math.abs(index - active) <= 1 ? (
-          // The one either side is mounted too, paused, so the next swipe
-          // starts playing immediately instead of showing a black frame.
+          <View style={{ position: 'absolute', top: 0, left: (width - stage) / 2, width: stage, height: pageH, overflow: 'hidden' }}>
           <Video
             source={{ uri: item.videoUrl }}
             style={StyleSheet.absoluteFill}
@@ -126,6 +131,7 @@ export default function ShortsScreen({ navigation }) {
             // underneath Home would be heard and not seen.
             paused={!isActive || paused || !focused}
           />
+          </View>
         ) : null}
 
         {isActive && paused && (
@@ -134,7 +140,7 @@ export default function ShortsScreen({ navigation }) {
           </View>
         )}
 
-        <View style={[st.rail, { bottom: (underGlass ? tabSpace : 0) + 120 }]}>
+        <View style={[st.rail, { bottom: (underGlass ? tabSpace : 0) + 120, right: (width - stage) / 2 + 10 }]}>
           <PostActions
             post={item}
             tone="video"
@@ -144,7 +150,7 @@ export default function ShortsScreen({ navigation }) {
           />
         </View>
 
-        <View style={[st.info, { paddingBottom: (underGlass ? tabSpace : 0) + 18 }]} pointerEvents="none">
+        <View style={[st.info, { paddingBottom: (underGlass ? tabSpace : 0) + 18, left: (width - stage) / 2 + 14, right: (width - stage) / 2 + 74 }]} pointerEvents="none">
           <View style={st.byRow}>
             <View style={st.avatar}>
               {item.authorPhoto

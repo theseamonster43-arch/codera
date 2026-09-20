@@ -171,3 +171,12 @@ export const Camera = ({ color, size = 24 }) => (
     <Circle cx="12" cy="12.8" r="3.6" {...stroke(color, 1.8)} />
   </S>
 );
+
+// Going live, and streams on air: a dot with waves either side.
+export const Live = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Circle cx="12" cy="12" r="2.3" fill={color} />
+    <Path d="M8.3 8.3a5.3 5.3 0 0 0 0 7.4M15.7 8.3a5.3 5.3 0 0 1 0 7.4M5.4 5.4a9.3 9.3 0 0 0 0 13.2M18.6 5.4a9.3 9.3 0 0 1 0 13.2"
+          {...stroke(color, 1.9)} />
+  </S>
+);

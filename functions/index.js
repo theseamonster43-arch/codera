@@ -26,6 +26,22 @@ exports.plusCheckout = stripe.plusCheckout;
 exports.plusSubscribe = stripe.plusCheckout;
 exports.plusEmbedded = stripe.plusEmbedded;
 exports.plusIntent = stripe.plusIntent;
+exports.plusCard = stripe.plusCard;
+exports.plusCardSave = stripe.plusCardSave;
 exports.plusCancel = stripe.plusCancel;
-exports.plusResume = stripe.plusResume;
 exports.stripeWebhook = stripe.stripeWebhook;
+
+// Tips on live streams, paid to the streamer through Stripe Connect, 3% to Codera.
+const tips = require('./tips');
+
+exports.tipIntent = tips.tipIntent;
+exports.tipConfirm = tips.tipConfirm;
+exports.payoutsLink = tips.payoutsLink;
+exports.payoutsStatus = tips.payoutsStatus;
+exports.payoutsDashboard = tips.payoutsDashboard;
+
+// Community Standards: every new post screened, and reports acted on.
+const moderation = require('./moderation');
+
+exports.screenPost = moderation.screenPost;
+exports.onReport = moderation.onReport;

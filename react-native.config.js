@@ -14,5 +14,10 @@ module.exports = {
     // Android build script also pins a 2022 Android Gradle plugin that no longer
     // resolves, which fails the whole build.
     'react-native-bottom-tabs': { platforms: { android: null } },
+
+    // Stripe takes the card inside the app on Android only (see IN_APP_PAYMENTS
+    // in src/plus.js). iOS pays on the website, so its half is left unlinked:
+    // no new pod, and nothing about the iOS build changes.
+    '@stripe/stripe-react-native': { platforms: { ios: null } },
   },
 };

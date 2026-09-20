@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, Image, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { contactProblem } from '../safety';
 
 import { useTheme, F } from '../theme';
 import useWindowControls from '../windowControls';
@@ -33,6 +34,10 @@ export default function CommentsScreen({ route, navigation }) {
   async function send() {
     const body = text.trim();
     if (!body || busy) return;
+    // The author of a post owns the room and may point at their own things;
+    // nobody may hand out a phone number or a way into a private chat.
+    const problem = contactProblem(body, !!(me && postUid && postUid === me));
+    if (problem) { setErr(problem); return; }
     setBusy(true);
     setErr('');
     try {

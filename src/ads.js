@@ -10,7 +10,9 @@ import { usePlus } from './plus';
 /**
  * Ads in Codera, and the rules for when they're allowed.
  *
- * Two places only, both at a natural break, never over something playing:
+ * Three places only, each at a natural break, never over something playing:
+ *   - a sponsored card on Home, after the first video, which plays muted in
+ *     the card and is watched only if you tap it;
  *   - a sponsored page between shorts, which you can swipe straight past;
  *   - one short ad before a longer video starts — never in the middle of one,
  *     where it would land on whatever part you were enjoying.
@@ -23,17 +25,20 @@ const REAL_UNIT = Platform.select({
   android: {
     sponsoredShort: 'ca-app-pub-3513532971187636/8328139000',
     beforeVideo: 'ca-app-pub-3513532971187636/8171014882',
+    // Native ad unit for the Home card: create it in AdMob (Native, video
+    // allowed) and put its id here. Until then release builds show no Home ad.
+    homeFeed: null,
   },
   // No iOS app in AdMob yet. Until there is one, iOS release builds show no ads
   // rather than Google's test ads.
-  default: { sponsoredShort: null, beforeVideo: null },
+  default: { sponsoredShort: null, beforeVideo: null, homeFeed: null },
 });
 
 // Debug builds always use Google's test units, never the real ones: tapping
 // your own live ads while testing, even by accident, can get the AdMob account
 // suspended. Test units never earn, and are safe to tap.
 const UNIT = __DEV__
-  ? { sponsoredShort: TestIds.NATIVE_VIDEO, beforeVideo: TestIds.INTERSTITIAL_VIDEO }
+  ? { sponsoredShort: TestIds.NATIVE_VIDEO, beforeVideo: TestIds.INTERSTITIAL_VIDEO, homeFeed: TestIds.NATIVE_VIDEO }
   : REAL_UNIT;
 
 /** Tuned to be rare. Loosen with care: an annoyed viewer is worth more than an ad. */
@@ -112,6 +117,7 @@ async function startAds() {
     log('ready', RULES === REAL_RULES ? '(real rules)' : '(PREVIEW rules)');
     loadBeforeVideo();
     loadSponsored();
+    loadHome();
   } catch (e) {
     log('start failed:', e?.message);
     started = false;
@@ -252,5 +258,68 @@ export function takeSponsored() {
   const ad = sponsored;
   sponsored = null;
   loadSponsored();
+  return ad;
+}
+
+// ---- On Home ------------------------------------------------------------------
+
+let homeAd = null;
+let homeAt = 0;
+let loadingHome = false;
+const homeListeners = new Set();
+
+function loadHome() {
+  if (!UNIT.homeFeed || loadingHome || homeAd) return;
+  loadingHome = true;
+
+  let settled = false;
+  const failed = why => {
+    if (settled) return;
+    settled = true;
+    loadingHome = false;
+    log('home ad failed to load:', why);
+    setTimeout(loadHome, RETRY_MS);
+  };
+  const timer = setTimeout(() => failed('timed out'), LOAD_TIMEOUT_MS);
+
+  NativeAd.createForAdRequest(UNIT.homeFeed, {
+    aspectRatio: NativeMediaAspectRatio.LANDSCAPE,
+    adChoicesPlacement: NativeAdChoicesPlacement.TOP_RIGHT,
+    // Plays silently in the card; sound only if someone chooses to watch.
+    startVideoMuted: true,
+  })
+    .then(ad => {
+      clearTimeout(timer);
+      if (homeAd) { ad.destroy(); return; }
+      settled = true;
+      loadingHome = false;
+      homeAd = ad;
+      homeAt = Date.now();
+      log('home ad loaded');
+      homeListeners.forEach(l => l());
+    })
+    .catch(e => { clearTimeout(timer); failed(e?.message); });
+}
+
+/** Tells Home when an ad has loaded, so it can place one without a refresh. */
+export function onHomeAdReady(listener) {
+  homeListeners.add(listener);
+  return () => homeListeners.delete(listener);
+}
+
+/**
+ * Hands over a loaded Home ad if one is allowed right now, or null. The caller
+ * owns it from then on and must destroy() it when done.
+ */
+export function takeHomeAd() {
+  if (homeAd && Date.now() - homeAt > NATIVE_TTL_MS) {
+    homeAd.destroy();
+    homeAd = null;
+    loadHome();
+  }
+  if (!homeAd || !adAllowed()) return null;
+  const ad = homeAd;
+  homeAd = null;
+  loadHome();
   return ad;
 }

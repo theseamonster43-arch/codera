@@ -25,6 +25,9 @@ const Stripe = require('stripe');
 const STRIPE_SECRET = defineSecret('STRIPE_SECRET');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
+// Shared with tips.js, which charges through the same Stripe account.
+exports.STRIPE_SECRET = STRIPE_SECRET;
+
 const PRICE = { amount: 1000, currency: 'usd', interval: 'month' };  // $10 a month
 const PRODUCT_NAME = 'Codera Plus';
 
@@ -129,7 +132,9 @@ exports.plusCheckout = onCall({ secrets: [STRIPE_SECRET] }, async req => {
     // even when it arrives days later for a renewal.
     subscription_data: { metadata: { uid } },
     allow_promotion_codes: true,
-    success_url: `${SITE}/#/plus?done=1`,
+    // The query goes before the hash, or the router reads "plus?done=1"
+    // as a page it has never heard of and shows the feed instead.
+    success_url: `${SITE}/?paid=1#/plus`,
     cancel_url: `${SITE}/#/plus`,
   });
 
@@ -257,6 +262,58 @@ async function invoiceSecret(invoiceId) {
 }
 
 /**
+ * Subscribing again after a cancellation, before the paid month is over.
+ *
+ * A new subscription, on a free trial that ends exactly when the old one does,
+ * so today costs nothing and the first $10 falls on the day the old month runs
+ * out. The card is collected now through the trial's setup step. The old
+ * subscription is left to lapse on its own, as it was already going to.
+ *
+ * If the card is never added, the trial cancels itself at its end rather than
+ * turning into a subscription with nothing to charge.
+ */
+async function renewal(uid, customer, plus) {
+  const startsAt = Math.floor(plus.endsAt.toMillis() / 1000);
+
+  // An unfinished attempt is picked up again, so pressing the button twice
+  // does not leave two renewals queued behind the same month.
+  const trialing = await stripe().subscriptions.list({
+    customer, status: 'trialing', limit: 10, expand: ['data.pending_setup_intent'],
+  });
+  let next = trialing.data.find(x =>
+    x.metadata && x.metadata.renewal === 'true' && x.pending_setup_intent);
+
+  if (!next) {
+    next = await stripe().subscriptions.create({
+      customer,
+      items: [{ price: await priceId() }],
+      trial_end: startsAt,
+      trial_settings: { end_behavior: { missing_payment_method: 'cancel' } },
+      payment_behavior: 'default_incomplete',
+      payment_settings: {
+        save_default_payment_method: 'on_subscription',
+        payment_method_types: ['card'],
+      },
+      metadata: { uid, renewal: 'true' },
+      expand: ['pending_setup_intent'],
+    });
+  }
+
+  let intent = next.pending_setup_intent;
+  if (typeof intent === 'string') intent = await stripe().setupIntents.retrieve(intent);
+  if (!intent || !intent.client_secret) {
+    throw new HttpsError('internal', 'No card step to confirm.');
+  }
+
+  return {
+    setupSecret: intent.client_secret,
+    startsAt: startsAt * 1000,
+    subscriptionId: next.id,
+    livemode: !!next.livemode,
+  };
+}
+
+/**
  * Starts a subscription that is waiting to be paid, and hands back what the
  * page needs to take the card itself.
  *
@@ -269,11 +326,18 @@ exports.plusIntent = onCall({ secrets: [STRIPE_SECRET] }, async req => {
 
   const snap = await userDoc(uid).get();
   const plus = snap.get('plus');
-  const paid = plus && plus.active && plus.subscriptionId
+  const running = plus && plus.active && plus.subscriptionId
     && plus.endsAt && plus.endsAt.toMillis() > Date.now();
-  if (paid) throw new HttpsError('failed-precondition', 'You already have Plus.');
+  if (running && !plus.cancelled) {
+    throw new HttpsError('failed-precondition', 'You already have Plus.');
+  }
 
   const customer = await customerFor(uid, email);
+
+  // Cancelled, but still inside a month that is paid for: coming back is a
+  // purchase like any other, except the first charge waits for that month to
+  // run out rather than taking money twice for the same days.
+  if (running && plus.cancelled) return renewal(uid, customer, plus);
 
   // An attempt that was started and abandoned is picked up again rather than
   // left behind: pressing Subscribe twice must not litter the account with
@@ -308,6 +372,70 @@ exports.plusIntent = onCall({ secrets: [STRIPE_SECRET] }, async req => {
     subscriptionId: subscription.id,
     livemode: !!subscription.livemode,
   };
+});
+
+/**
+ * Changing the card a subscription is charged to.
+ *
+ * Two steps. This one opens a card-saving step at Stripe for this customer and
+ * hands back its secret; the page collects the card. Then plusCardSave checks
+ * the card really was saved, by this account, and points the subscription at
+ * it. Nothing is charged by either.
+ */
+exports.plusCard = onCall({ secrets: [STRIPE_SECRET] }, async req => {
+  const uid = uidOf(req);
+  const email = req.auth.token.email || null;
+
+  const snap = await userDoc(uid).get();
+  const subscriptionId = snap.get('plus.subscriptionId');
+  if (!subscriptionId || !snap.get('plus.active')) {
+    throw new HttpsError('failed-precondition', "You don't have Plus.");
+  }
+
+  const intent = await stripe().setupIntents.create({
+    customer: await customerFor(uid, email),
+    usage: 'off_session',
+    payment_method_types: ['card'],
+    metadata: { uid, subscriptionId },
+  });
+
+  return {
+    setupSecret: intent.client_secret,
+    setupIntentId: intent.id,
+    livemode: !!intent.livemode,
+  };
+});
+
+/**
+ * The second step: make the newly saved card the one that gets charged.
+ *
+ * Everything is read back from Stripe rather than taken from the request —
+ * whose card it is and which subscription it is for — so a client cannot point
+ * someone else's subscription at a card, or its own at someone else's.
+ */
+exports.plusCardSave = onCall({ secrets: [STRIPE_SECRET] }, async req => {
+  const uid = uidOf(req);
+  const id = req.data && req.data.setupIntentId;
+  if (!id || typeof id !== 'string') throw new HttpsError('invalid-argument', 'No card to save.');
+
+  const intent = await stripe().setupIntents.retrieve(id);
+  if (!intent.metadata || intent.metadata.uid !== uid) {
+    throw new HttpsError('permission-denied', 'That card is not yours to save.');
+  }
+  if (intent.status !== 'succeeded' || !intent.payment_method) {
+    throw new HttpsError('failed-precondition', "That card wasn't saved. Try again.");
+  }
+
+  const card = typeof intent.payment_method === 'string'
+    ? intent.payment_method : intent.payment_method.id;
+
+  await stripe().subscriptions.update(intent.metadata.subscriptionId, { default_payment_method: card });
+  // And for anything billed to the customer outside the subscription.
+  await stripe().customers.update(intent.customer, {
+    invoice_settings: { default_payment_method: card },
+  });
+
+  return { ok: true };
 });
 
 /** Stops it renewing. Plus stays until the end of the period already paid for. */
@@ -364,6 +492,17 @@ async function applySubscription(sub) {
   if (!uid) return;
 
   const live = ['active', 'trialing', 'past_due'].includes(sub.status);
+
+  // Someone who subscribed again has two subscriptions for a while: the old
+  // one lapsing and the new one waiting to start. When the old one finally
+  // ends, that must not switch off the Plus the new one is providing.
+  if (!live) {
+    const now = (await userDoc(uid).get()).get('plus');
+    if (now && now.active && now.subscriptionId && now.subscriptionId !== sub.id) return;
+  }
+  // Nor should a renewal whose card was never added take over the record.
+  if (sub.status === 'trialing' && sub.metadata && sub.metadata.renewal === 'true'
+      && !sub.default_payment_method) return;
   const endsMs = periodEnd(sub) * 1000;
 
   await userDoc(uid).set({

@@ -36,9 +36,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string/>
 	<key>NSCameraUsageDescription</key>
-	<string>Codera uses the camera to record shorts and videos.</string>
+	<string>Codera uses the camera to record shorts and videos, and when you go live.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Codera records sound with your shorts and videos.</string>
+	<string>Codera records sound with your shorts and videos, and when you go live.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Codera lets you pick a video from your library to post.</string>
 	<key>UILaunchStoryboardName</key>

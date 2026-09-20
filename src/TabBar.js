@@ -59,6 +59,7 @@ export default function TabBar({ state, navigation }) {
     // The tab navigator hands these up to the stack above it, which is where
     // the compose screens live — so they slide up over the bar, not inside it.
     if (kind === 'post') navigation.navigate('ComposePost');
+    else if (kind === 'live') navigation.navigate('LiveView', { path: 'golive' });
     else navigation.navigate('ComposeVideo', { kind });
   };
 

@@ -15,11 +15,14 @@ import useWindowControls from '../windowControls';
 import { Person, Play, Chevron } from '../Icons';
 import Empty from '../Empty';
 import PostCard from '../PostCard';
+import useLayout from '../layout';
 import usePosts from '../usePosts';
 import Mark from '../Mark';
 import PlusChip from '../PlusChip';
 import { usePlus, plusDate, PLUS_PRICE, PLUS_INTERVAL } from '../plus';
 import { useProfile, setProfileImage, clearBanner, setBio, BIO_MAX } from '../profile';
+import { MyLinks } from '../LinkRow';
+import { useAge } from '../safety';
 import Gradient, { BRAND } from '../Gradient';
 import { Picture, Camera } from '../Icons';
 
@@ -27,6 +30,7 @@ import { Picture, Camera } from '../Icons';
 export default function YouScreen({ navigation }) {
   const T = useTheme();
   const s = useMemo(() => styles(T), [T]);
+  const L = useLayout();
   const insets = useSafeAreaInsets();
   const tabSpace = useTabSpace();
   const wc = useWindowControls();
@@ -38,6 +42,7 @@ export default function YouScreen({ navigation }) {
   // being written (null when it is not).
   const [busy, setBusy] = useState(null);
   const [bio, setBioText] = useState(null);
+  const age = useAge();
 
   // The picture's own shape, so the strip chosen on the website is the strip
   // shown here. React Native has no object-position, so the picture is drawn at
@@ -49,7 +54,7 @@ export default function YouScreen({ navigation }) {
     if (!bannerUrl) { setShot(null); return undefined; }
     let live = true;
     Image.getSize(bannerUrl, (w, h) => { if (live) setShot({ w, h }); }, () => {});
-    return () => { live = false; };
+  return () => { live = false; };
   }, [bannerUrl]);
 
   const BANNER_H = 132;
@@ -206,6 +211,9 @@ export default function YouScreen({ navigation }) {
         </View>
       )}
 
+      {/* Where else people can find you. */}
+      <MyLinks links={profile.links} age={age} />
+
       {/* Counted from what you have actually posted, not stored separately —
           a stored counter drifts the first time a delete fails halfway. */}
       <View style={s.stats}>
@@ -255,13 +263,24 @@ export default function YouScreen({ navigation }) {
     </Pressable>
   );
 
+  // Each card takes one column's worth of the row, measured rather than
+  // proportioned, so the row can't collapse around its contents.
+  const cellW = (L.width - L.side * 2) / L.columns;
+  const cell = ({ item }) => (
+    L.wide
+      ? <View style={{ width: cellW }}><PostCard post={item} /></View>
+      : <PostCard post={item} />
+  );
+
   return (
     <View style={s.fill}>
       <StatusBar barStyle={T.dark ? 'light-content' : 'dark-content'} backgroundColor={T.bg} />
       <FlatList
         data={shown}
         keyExtractor={p => p.id}
-        renderItem={({ item }) => <PostCard post={item} />}
+        key={'cols' + L.columns}
+        numColumns={L.columns}
+        renderItem={cell}
         ListHeaderComponent={header}
         ListFooterComponent={footer}
         ListEmptyComponent={
@@ -282,7 +301,7 @@ export default function YouScreen({ navigation }) {
           />
           )
         }
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: tabSpace + 24 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: tabSpace + 24, paddingHorizontal: L.side }}
         showsVerticalScrollIndicator={false}
       />
     </View>

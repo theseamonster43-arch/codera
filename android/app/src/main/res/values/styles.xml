@@ -1,6 +1,9 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Base application theme. -->
+    <!-- Base application theme.
+         Material Components rather than plain AppCompat: Stripe's card form is
+         built from Material views and refuses to inflate under anything else.
+         The Bridge variant keeps every other widget exactly as AppCompat drew it. -->
     <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Customize your theme here. -->
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>

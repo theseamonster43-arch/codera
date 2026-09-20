@@ -1,0 +1,22 @@
+diff --git a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormView.kt b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormView.kt
+index 27d3036..72f0952 100644
+--- a/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormView.kt
++++ b/node_modules/@stripe/stripe-react-native/android/src/main/java/com/reactnativestripesdk/CardFormView.kt
+@@ -37,8 +37,16 @@ class CardFormView(
+   private val context: ThemedReactContext,
+ ) : FrameLayout(context) {
+   @SuppressLint("PrivateResource")
++  // Stripe's form is built from Material views and refuses to inflate unless the
++  // theme around it is Material Components. Codera's app theme is AppCompat,
++  // and switching the whole app over stops React Native mounting anything, so
++  // the form alone is given a Material theme to grow up in.
+   private var cardForm: CardFormView =
+-    CardFormView(context, null, com.stripe.android.R.style.StripeCardFormView_Borderless)
++    CardFormView(
++      android.view.ContextThemeWrapper(
++        context, com.google.android.material.R.style.Theme_MaterialComponents_DayNight_NoActionBar),
++      null,
++      com.stripe.android.R.style.StripeCardFormView_Borderless)
+   private var dangerouslyGetFullCardDetails: Boolean = false
+   private var currentFocusedField: String? = null
+   var cardParams: PaymentMethodCreateParams.Card? = null

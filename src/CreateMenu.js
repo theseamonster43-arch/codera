@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet, Modal, Animated, Easing } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme, TAB_H, F } from './theme';
-import { Shorts, Play, Code, Plus } from './Icons';
+import { Shorts, Play, Code, Plus, Live } from './Icons';
 import ButtonFill from './ButtonFill';
 import { BRAND } from './Gradient';
 
@@ -17,6 +17,7 @@ export const KINDS = [
   { id: 'short', title: 'Record a short', sub: 'Under a minute, one idea', icon: Shorts },
   { id: 'video', title: 'Upload a video', sub: 'A full tutorial with voice', icon: Play },
   { id: 'post',  title: 'Write a post',   sub: 'Text and a code snippet',   icon: Code },
+  { id: 'live',  title: 'Go live',        sub: 'Stream with live chat',     icon: Live },
 ];
 
 /**

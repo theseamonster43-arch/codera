@@ -1,0 +1,24 @@
+/* The Privacy Policy and Terms: plain, readable, in Codera's own type. */
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Regular.ttf') format('truetype'); font-weight: 400; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Bold.ttf') format('truetype'); font-weight: 700; }
+@font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-ExtraBold.ttf') format('truetype'); font-weight: 800; }
+
+:root { color-scheme: light dark; --bg: #f6f7f6; --text: #0c120e; --muted: #56655b; --line: rgba(22, 101, 52, .14); --link: #2563eb; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #070a08; --text: #eef3ef; --muted: #8fa196; --line: rgba(34, 197, 94, .14); --link: #60a5fa; }
+}
+
+body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Scoutie Sans', system-ui, sans-serif; line-height: 1.65; }
+main { max-width: 720px; margin: 0 auto; padding: 32px 22px 64px; }
+.home { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 800; font-size: 18px; }
+.mark { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800;
+  background: linear-gradient(135deg, #22c55e, #60a5fa); }
+h1 { font-size: 34px; font-weight: 800; letter-spacing: -0.8px; margin: 28px 0 4px; }
+h2 { font-size: 20px; font-weight: 800; margin: 32px 0 8px; }
+.meta { color: var(--muted); margin: 0 0 24px; }
+p, li { font-size: 16px; }
+ul { padding-left: 22px; }
+li { margin: 6px 0; }
+a { color: var(--link); }
+.contact { font-weight: 700; }
+.foot { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }

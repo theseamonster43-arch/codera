@@ -19,16 +19,19 @@
     "@react-navigation/bottom-tabs": "^7.18.18",
     "@react-navigation/native": "^7.3.18",
     "@react-navigation/native-stack": "^7.18.10",
+    "@stripe/stripe-react-native": "^0.76.0",
     "firebase": "^12.19.0",
     "react": "19.2.3",
     "react-native": "0.87.1",
     "react-native-bottom-tabs": "^1.4.0",
+    "react-native-get-random-values": "^2.0.0",
     "react-native-google-mobile-ads": "^16.5.0",
     "react-native-image-picker": "^8.2.1",
     "react-native-safe-area-context": "^5.9.1",
     "react-native-screens": "^4.27.0",
     "react-native-svg": "^15.15.5",
-    "react-native-video": "^6.19.2"
+    "react-native-video": "^6.19.2",
+    "react-native-webview": "^13.17.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

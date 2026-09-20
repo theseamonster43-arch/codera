@@ -25,6 +25,9 @@ import ComposePostScreen from './src/screens/ComposePostScreen';
 import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
 import PlusScreen from './src/screens/PlusScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
+import LiveViewScreen from './src/screens/LiveViewScreen';
+import UserScreen from './src/screens/UserScreen';
+import { SheetHost } from './src/Sheet';
 
 const Tab = createBottomTabNavigator();
 const NativeTab = createNativeBottomTabNavigator();
@@ -66,6 +69,7 @@ function GlassTabs({ navigation }) {
   const pick = kind => {
     setMenuOpen(false);
     if (kind === 'post') navigation.navigate('ComposePost');
+    else if (kind === 'live') navigation.navigate('LiveView', { path: 'golive' });
     else navigation.navigate('ComposeVideo', { kind });
   };
 
@@ -186,17 +190,29 @@ export default function App() {
             <NavigationContainer theme={navTheme}>
               <Stack.Navigator screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="Tabs" component={Tabs} />
+                {/* Somebody's page: a place you go to and come back from. */}
+                <Stack.Screen name="User" component={UserScreen} />
                 {/* Composing slides up over everything, tab bar included: it is
                     a task you finish or cancel, not a place you navigate around. */}
                 <Stack.Group screenOptions={{ presentation: 'modal', animation: 'slide_from_bottom' }}>
                   <Stack.Screen name="ComposePost" component={ComposePostScreen} />
                   <Stack.Screen name="ComposeVideo" component={ComposeVideoScreen} />
                   <Stack.Screen name="Plus" component={PlusScreen} />
+                  {/* Loaded only when opened: it pulls in Stripe's native code,
+                      which only Android links. */}
+                  <Stack.Screen
+                    name="Checkout"
+                    getComponent={() => require('./src/screens/CheckoutScreen').default}
+                  />
                   <Stack.Screen name="Comments" component={CommentsScreen} />
+                  {/* Going live, or watching: no swipe to dismiss, which would end a stream by accident. */}
+                  <Stack.Screen name="LiveView" component={LiveViewScreen} options={{ gestureEnabled: false }} />
                 </Stack.Group>
               </Stack.Navigator>
             </NavigationContainer>
           )}
+          {/* Codera's own dialogs, above everything; see src/Sheet.js. */}
+          <SheetHost />
         </SafeAreaProvider>
       )}
       {splash && <Splash ready={ready} onDone={() => setSplash(false)} />}

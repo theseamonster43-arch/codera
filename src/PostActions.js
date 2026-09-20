@@ -4,6 +4,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useTheme, F } from './theme';
 import { ThumbUp, ThumbDown, Comment } from './Icons';
 import { vote, subscribeMyVote } from './data';
+import { nudgePost, WEIGHT } from './social';
 
 /**
  * Like, dislike and comment, for anything that can be posted.
@@ -25,7 +26,11 @@ export default function PostActions({ post, onComment, tone = 'card' }) {
 
   // Nothing is done about a failed vote beyond leaving the count alone: the
   // listener holds the truth, so the thumb simply doesn't stick.
-  const press = want => vote(post.id, want).catch(() => {});
+  const press = want => {
+    // A like says more about what someone wants than a view; a dislike, less.
+    if (mine !== want) nudgePost(post, want === 1 ? WEIGHT.like : WEIGHT.dislike);
+    return vote(post.id, want).catch(() => {});
+  };
 
   const plain = video ? 'rgba(255,255,255,0.92)' : T.muted;
   const size = video ? 27 : 19;
