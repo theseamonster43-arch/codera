@@ -97,6 +97,11 @@ exports.plusCheckout = onCall({ secrets: [STRIPE_SECRET] }, async req => {
 
   const session = await stripe().checkout.sessions.create({
     mode: 'subscription',
+    // Charged in the customer's own currency, converted by Stripe at its own
+    // rate. The price is set in dollars here and Stripe presents the local
+    // amount, so what someone is shown is what leaves their account — no
+    // approximation, and no second conversion by their bank.
+    adaptive_pricing: { enabled: true },
     // Named outright rather than left to the dashboard's payment-method
     // settings: an account with none switched on for this currency cannot open
     // a checkout at all, and the error it gives says nothing about why.
@@ -162,6 +167,8 @@ exports.plusEmbedded = onCall({ secrets: [STRIPE_SECRET] }, async req => {
     // Stripe renamed this from 'embedded' in the 2026 API versions.
     ui_mode: 'embedded_page',
     mode: 'subscription',
+    // As above: presented and charged in the customer's own currency.
+    adaptive_pricing: { enabled: true },
     payment_method_types: ['card'],
     customer: await customerFor(uid, email),
     client_reference_id: uid,

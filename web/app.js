@@ -213,8 +213,17 @@ async function dollarRate(code) {
   } catch (e) { return null; }
 }
 
-/** "about AED 36.70 a month" — or nothing at all, where we cannot say. */
-async function localPriceLine() {
+/**
+ * The price, in the money the reader actually pays in — "AED 36.73" — or
+ * nothing at all where we cannot say, in which case the dollar price stands.
+ *
+ * This is the price now, not an approximation of one: Stripe presents and
+ * charges in the customer's own currency, so the amount shown here is the
+ * amount that leaves their account, and their bank does no second conversion.
+ * The rate moves during the day, as any currency does, and Stripe's own
+ * figure is on the checkout page before anybody pays.
+ */
+async function localHeadline() {
   const code = localCurrency();
   if (!code) return '';
   const rate = await dollarRate(code);
@@ -222,11 +231,27 @@ async function localPriceLine() {
   const amount = 10 * rate;
   // Whole numbers where the currency has no small unit worth showing.
   const big = amount >= 500;
-  const shown = new Intl.NumberFormat(navigator.language || 'en', {
+  return new Intl.NumberFormat(navigator.language || 'en', {
     style: 'currency', currency: code,
     maximumFractionDigits: big ? 0 : 2, minimumFractionDigits: big ? 0 : 2,
   }).format(amount);
-  return 'about ' + shown + ' a month, charged in US dollars';
+}
+
+/** Puts it wherever the dollar price is standing in for it. */
+function showLocalPrice() {
+  localHeadline().then(shown => {
+    if (!shown) return;
+    for (const id of ['priceBig', 'payPriceBig']) {
+      const box = el(id);
+      if (box) box.textContent = shown;
+    }
+    for (const id of ['plusBtn', 'payGo']) {
+      const btn = el(id);
+      if (btn && /\$10\/month/.test(btn.textContent)) {
+        btn.textContent = btn.textContent.replace('$10/month', shown + '/month');
+      }
+    }
+  });
 }
 // Plus is paid for with Stripe. Nothing about the price or the card is decided
 // here: this page only asks the server to start a checkout, and Stripe takes it
@@ -549,7 +574,7 @@ const PUBLIC_PLACES = [
   'instagram.com', 'tiktok.com', 'twitch.tv', 'reddit.com', 'bsky.app', 'threads.net',
   'patreon.com', 'ko-fi.com', 'buymeacoffee.com', 'substack.com',
   'codesandbox.io', 'figma.com', 'notion.site', 'docs.google.com', 'developer.mozilla.org',
-  'codera-46b86.web.app',
+  'learncodera.com', 'codera-46b86.web.app',
 ];
 
 const PRIVATE_CHANNELS = [
@@ -3567,8 +3592,7 @@ function pagePlus(main) {
       <p class="lede">Support Codera, lose the ads, and get every perk the moment it exists.</p>
 
       <div class="plan"><div class="plan-in">
-        <div class="price"><b>${PLUS_PRICE}</b><span>/ month</span></div>
-        <p class="local" id="localPrice" hidden></p>
+        <div class="price"><b id="priceBig">${PLUS_PRICE}</b><span>/ month</span></div>
         ${PERKS.map(([t, b]) => `<div class="perk">
           <span class="tick">${I.check()}</span>
           <span><b>${t}</b><span>${b}</span></span>
@@ -3586,8 +3610,7 @@ function pagePlus(main) {
             <b id="payTitle">Codera Plus</b>
             <button class="pill" id="payBack">Back</button>
           </div>
-          <div class="payprice"><b>$10</b><span>/ month</span></div>
-          <p class="local" id="localPrice2" hidden></p>
+          <div class="payprice"><b id="payPriceBig">$10</b><span>/ month</span></div>
           ${PERKS.map(([t]) => `<div class="payperk">${I.check()}<span>${t}</span></div>`).join('')}
           <p class="plus-note" id="payNote">Card details go straight to Stripe.
             Codera never sees them.</p>
@@ -3606,11 +3629,9 @@ function pagePlus(main) {
     </div></div>
   </div>`;
 
-  // Written in once the rate arrives, so nothing waits on it.
-  localPriceLine().then(line => {
-    const box = el('localPrice');
-    if (box && line) { box.textContent = line; box.hidden = false; }
-  });
+  // Written in once the rate arrives, so nothing waits on it: the dollar
+  // price is what stands there until it does.
+  showLocalPrice();
 
   const btn = el('plusBtn');
   btn.onclick = async () => {
@@ -3716,12 +3737,7 @@ function pagePlus(main) {
     document.querySelector('.plus-in').classList.add('paying');
     el('payTitle').textContent = WORDS.title;
     el('payNote').textContent = WORDS.note;
-    if (mode === 'pay') {
-      localPriceLine().then(line => {
-        const n = el('localPrice2');
-        if (n && line) { n.textContent = line; n.hidden = false; }
-      });
-    }
+    if (mode === 'pay') showLocalPrice();
     payOpen = true;
     box.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -4397,14 +4413,15 @@ const SHUT = {
   },
 };
 
+// The clock only. The language a browser is set to was in here too and it
+// was wrong: an Australian living anywhere else still has en-AU, and would be
+// shut out of a country they are not in. What someone's language says about
+// them is who they are, not where they are.
 function shutHere() {
   let zone = '';
   try { zone = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* older browser */ }
-  const tags = [navigator.language || ''].concat(navigator.languages || []);
   for (const code of Object.keys(SHUT)) {
-    const rule = SHUT[code];
-    if (rule.zones.test(zone)) return rule;
-    if (tags.some(t => rule.tags.test(t))) return rule;
+    if (SHUT[code].zones.test(zone)) return SHUT[code];
   }
   return null;
 }
@@ -4420,6 +4437,10 @@ function showShut(rule) {
   // but the wiring just below still writes a logo into it, so it has to stay.
   const splash = el('splash');
   if (splash) splash.style.display = 'none';
+  // A class on the root, not the hidden attribute: every one of these sets
+  // its own display in the stylesheet, and a stylesheet beats [hidden]. That
+  // is how the top bar — with search and Create on it — stayed on screen.
+  document.documentElement.classList.add('shut-here');
   for (const id of ['top', 'rail', 'drawer', 'bottom', 'scrim', 'gate']) {
     const part = document.getElementById(id);
     if (part) part.hidden = true;
@@ -4443,12 +4464,17 @@ function showShut(rule) {
 var shutNow = shutHere();
 if (shutNow) showShut(shutNow);
 
+// Asked fresh every time, with the moment in the address and no-store on top.
+// A cached answer to "where are you" is worse than none: it kept someone shut
+// out for an hour after they turned a VPN off, which is exactly how this was
+// found.
+//
 // The clock is a declaration; the address is evidence. Either one closing the
 // door is enough — the clock catches an address we can't place, and the
 // address catches someone who changed their clock. Asked after the page is
 // already up, so a slow answer never holds the site back; it shuts a moment
 // later if it has to.
-fetch('https://us-central1-codera-46b86.cloudfunctions.net/whereAmI')
+fetch('https://us-central1-codera-46b86.cloudfunctions.net/whereAmI?t=' + Date.now(), { cache: 'no-store' })
   .then(r => r.json())
   .then(said => {
     if (said.shut && !shutNow) {

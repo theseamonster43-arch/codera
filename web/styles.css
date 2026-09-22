@@ -1284,3 +1284,16 @@ h1.title .i { width: 1em; height: 1em; }
 .shut-small { font-size: 13px !important; margin-top: 10px !important; }
 .shut-small a { color: var(--muted); }
 .shut-small a:hover { color: var(--green); }
+
+/* Nothing but the notice, when Codera isn't open here ------------------------------- */
+/* Each of these sets its own display, so the hidden attribute can't touch them. */
+:root.shut-here .top,
+:root.shut-here .rail,
+:root.shut-here .drawer,
+:root.shut-here .bottom,
+:root.shut-here .scrim,
+:root.shut-here .gate,
+:root.shut-here .splash,
+:root.shut-here .sheet,
+:root.shut-here .fab { display: none !important; }
+:root.shut-here main { padding: 0 !important; }

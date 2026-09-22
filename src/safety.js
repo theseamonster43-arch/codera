@@ -130,7 +130,7 @@ const PUBLIC_PLACES = [
   'instagram.com', 'tiktok.com', 'twitch.tv', 'reddit.com', 'bsky.app', 'threads.net',
   'patreon.com', 'ko-fi.com', 'buymeacoffee.com', 'substack.com',
   'codesandbox.io', 'figma.com', 'notion.site', 'docs.google.com', 'developer.mozilla.org',
-  'codera-46b86.web.app',
+  'learncodera.com', 'codera-46b86.web.app',
 ];
 
 const PRIVATE_CHANNELS = [

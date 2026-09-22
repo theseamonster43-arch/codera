@@ -102,7 +102,10 @@ exports.whereAmI = onRequest({ cors: true, maxInstances: 5, memory: '256MiB' }, 
     console.error('[whereAmI]', e.message);
   }
 
-  // The same answer for an hour, so this isn't asked on every page load.
-  res.set('Cache-Control', 'public, max-age=3600');
+  // Never cached. An hour of caching looked like a kindness and was a trap:
+  // the answer is about where you are *now*, so a stale one keeps someone shut
+  // out long after they have moved, turned a VPN off, or got a new address.
+  // It is one small request per page load, which is cheaper than being wrong.
+  res.set('Cache-Control', 'no-store');
   res.json({ shut, known: four !== null || !!six });
 });
