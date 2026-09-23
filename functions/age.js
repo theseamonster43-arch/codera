@@ -26,7 +26,7 @@ const { STRIPE_SECRET } = require('./stripe');
  */
 
 const ADULT_AGE = 18;
-const SITE = 'https://codera-46b86.web.app';
+const SITE = 'https://learncodera.com';
 
 const db = () => getFirestore();
 const stripe = () => new Stripe(STRIPE_SECRET.value());

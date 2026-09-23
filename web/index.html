@@ -7,8 +7,16 @@
 <meta name="description" content="Codera on the web — coding tutorials, shorts and posts that run.">
 <meta name="theme-color" content="#080c0a" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#f5f7f6" media="(prefers-color-scheme: light)">
+<!-- The SVG first, for browsers that take one: it stays crisp at any size.
+     Then PNGs, because iOS ignores an SVG icon outright and draws its globe
+     placeholder instead. apple-touch-icon is square and opaque on purpose —
+     iOS fills transparency with black and rounds the icon itself, so a
+     rounded transparent one comes out with black corners. -->
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="icon" href="/icon-32.png" type="image/png" sizes="32x32">
+<link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <link rel="stylesheet" href="/styles.css">
 <!-- Stripe's own library, which is the only thing allowed to touch a card
      number. It must come from Stripe, not from a copy of our own. -->

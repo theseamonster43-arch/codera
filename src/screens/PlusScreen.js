@@ -194,7 +194,7 @@ export default function PlusScreen({ navigation }) {
       ? 'Card details go straight to Stripe. Codera never sees them.'
       // On iOS payment happens on Codera's website, in the phone's own
       // browser: the App Store allows nothing else for a subscription.
-      : 'Opens codera-46b86.web.app to pay. Plus switches on here by itself.';
+      : 'Opens learncodera.com to pay. Plus switches on here by itself.';
 
   let action;
   if (plus.loading) {
@@ -208,7 +208,7 @@ export default function PlusScreen({ navigation }) {
     // that happens on the website, like every other payment there.
     // Android pays on Codera's own checkout screen; iOS pays on the website.
     const start = IN_APP_PAYMENTS ? () => navigation.navigate('Checkout', { mode: 'pay' })
-      : plus.cancelled ? () => Linking.openURL('https://codera-46b86.web.app/#/plus')
+      : plus.cancelled ? () => Linking.openURL('https://learncodera.com/#/plus')
       : subscribePlus;
     action = (
       <Pressable onPress={() => (IN_APP_PAYMENTS ? start() : run(start))} disabled={busy}>
@@ -223,7 +223,7 @@ export default function PlusScreen({ navigation }) {
     // website, like every other payment there.
     const changeCard = IN_APP_PAYMENTS
       ? () => navigation.navigate('Checkout', { mode: 'card', nextCharge: plus.endsAt })
-      : () => Linking.openURL('https://codera-46b86.web.app/#/plus');
+      : () => Linking.openURL('https://learncodera.com/#/plus');
     action = (
       <View style={s.memberRow}>
         <Pressable onPress={changeCard} disabled={busy} style={[s.btnQuiet, s.memberBtn, busy && s.dim]}>

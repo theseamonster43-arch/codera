@@ -32,7 +32,7 @@ const PRICE = { amount: 1000, currency: 'usd', interval: 'month' };  // $10 a mo
 const PRODUCT_NAME = 'Codera Plus';
 
 /** Where Stripe sends people back to. */
-const SITE = 'https://codera-46b86.web.app';
+const SITE = 'https://learncodera.com';
 
 const db = () => getFirestore();
 const userDoc = uid => db().doc(`users/${uid}`);

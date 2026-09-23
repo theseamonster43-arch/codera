@@ -164,7 +164,7 @@ function connectError(e) {
 exports.payoutsLink = onCall({ secrets: [STRIPE_SECRET] }, async req => {
   const uid = uidOf(req);
   const back = req.data && typeof req.data.back === 'string' && req.data.back.startsWith('https://')
-    ? req.data.back : 'https://codera-46b86.web.app/#/you';
+    ? req.data.back : 'https://learncodera.com/#/you';
   try {
     let id = await accountOf(uid);
     if (id) {
@@ -199,7 +199,7 @@ exports.payoutsLink = onCall({ secrets: [STRIPE_SECRET] }, async req => {
           responsibilities: { fees_collector: 'stripe', losses_collector: 'stripe' },
           profile: {
             product_description: 'Tips from viewers of live streams on Codera',
-            business_url: 'https://codera-46b86.web.app',
+            business_url: 'https://learncodera.com',
           },
         },
         metadata: { uid },

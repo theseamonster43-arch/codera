@@ -12,7 +12,7 @@ import { auth } from './firebase';
  * `state` this app made — an answer without it is not an answer to our
  * question and is ignored. The app then signs in to Firebase with it.
  */
-const PAGE = 'https://codera-46b86.web.app/auth.html';
+const PAGE = 'https://learncodera.com/auth.html';
 const WAIT_MS = 10 * 60 * 1000;
 
 // Unguessable, so no other app can forge an answer to this sign-in.

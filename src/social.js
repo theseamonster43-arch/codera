@@ -18,7 +18,7 @@ import { learn, topicsOf, topicsOfText, WEIGHT } from './taste';
  * stream for saving, which the app's own video stack cannot.
  */
 
-export const SITE = 'https://codera-46b86.web.app';
+export const SITE = 'https://learncodera.com';
 
 // ---- shared listeners, one each for the whole app ---------------------------------
 

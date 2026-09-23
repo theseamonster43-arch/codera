@@ -69,7 +69,7 @@ const BASE = SANDBOX
 const AUTH_URL = 'https://auth.api.yoti.com/v1/oauth/token';
 const SCOPE = 'avs:sessions:create';
 
-const SITE = 'https://codera-46b86.web.app';
+const SITE = 'https://learncodera.com';
 const NOTIFY = 'https://us-central1-codera-46b86.cloudfunctions.net/ageNotify';
 
 /**
