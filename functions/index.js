@@ -58,7 +58,17 @@ exports.payoutsDashboard = tips.payoutsDashboard;
 // there is nothing to export for it here. age-yoti.js holds the Yoti version,
 // parked until that organisation is verified.
 const age = require('./age');
+const persona = require('./persona');
 const where = require('./where');
 
-exports.ageStart = age.ageStart;
+// Persona is the way in: a selfie, with a document only where the selfie
+// cannot decide. Stripe Identity stays in age.js, still wired to the Stripe
+// webhook, as the way back if Persona ever goes dark.
+exports.ageStart = persona.ageStart;
+
+// Persona's answer comes back here, signed, and is checked before it is
+// believed. ageSimulate is sandbox-only and acts out a whole inquiry, which
+// is how a pass and a fail get tested without a camera.
+exports.personaNotify = persona.personaNotify;
+exports.ageSimulate = persona.ageSimulate;
 exports.whereAmI = where.whereAmI;

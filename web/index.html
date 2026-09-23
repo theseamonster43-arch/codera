@@ -47,7 +47,7 @@
     </button>
   </form>
 
-  <div class="top-r">
+  <div class="top-r" id="top-r">
     <button class="icon-btn only-narrow" id="searchOpen" aria-label="Search">
       <svg viewBox="0 0 24 24" class="i"><circle cx="11" cy="11" r="6.4"/><path d="M16 16l4.5 4.5"/></svg>
     </button>
@@ -57,6 +57,12 @@
       <span>Create</span>
     </button>
     <button class="avatar" id="meBtn" aria-label="Account"></button>
+    <!-- Last on the right, after the account: the way out to the desktop app.
+         Hidden inside the phone apps, which are already installed. -->
+    <a class="pill install" id="installBtn" href="/download.html" title="Get Codera for your desktop">
+      <svg viewBox="0 0 24 24" class="i"><path d="M12 3.8v10.4M7.8 10.2 12 14.4l4.2-4.2M4.6 19.4h14.8"/></svg>
+      <span>Install</span>
+    </a>
   </div>
 </header>
 

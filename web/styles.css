@@ -1297,3 +1297,13 @@ h1.title .i { width: 1em; height: 1em; }
 :root.shut-here .sheet,
 :root.shut-here .fab { display: none !important; }
 :root.shut-here main { padding: 0 !important; }
+
+/* The way out to the desktop app, last on the top bar ------------------------------- */
+.install { text-decoration: none; color: var(--text); padding: 0 14px 0 11px; }
+.install:hover { border-color: var(--green); color: var(--green); }
+/* The phone apps are already installed, so it would be offering them themselves. */
+:root.in-app .install { display: none; }
+/* On a narrow window the label goes and the arrow speaks for itself; below that
+   the whole thing goes, because a phone can't run it anyway. */
+@media (max-width: 1080px) { .install span { display: none; } .install { padding: 0 10px; } }
+@media (max-width: 720px)  { .install { display: none; } }

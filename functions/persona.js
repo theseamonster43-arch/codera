@@ -37,7 +37,12 @@ const VERSION = '2025-12-08';
 // From the Persona dashboard: the template that runs a selfie age estimate and
 // falls back to a document. Not secret — it names a flow, and Persona puts it
 // in the URL the browser opens.
-const TEMPLATE = null;
+const TEMPLATE = 'itmpl_AckNAtrKzTHh24mn2HAUV8ZSGA2AN7';
+
+// The look the flow wears: Codera's colours and type, built in Persona's
+// dashboard. Every inquiry is created with it, so nobody meets a white form in
+// the middle of a dark app.
+const THEME_SET = 'theset_AckNAtrLWkKW8xzatq14C3XfDnttvF';
 
 const ADULT_AGE = 18;
 const SITE = 'https://learncodera.com';
@@ -88,16 +93,16 @@ exports.ageStart = onCall({ secrets: [PERSONA_KEY] }, async req => {
       data: {
         attributes: {
           'inquiry-template-id': TEMPLATE,
-          // Deprecated in favour of the meta field below, but it is this one
-          // that comes back on the webhook, so both are set.
+          'theme-set-id': THEME_SET,
+          // The inquiry's own reference, which is what the webhook carries back
+          // at payload.data.attributes.reference-id. Persona refuses a request
+          // that also sets meta.auto-create-account-reference-id — that one names
+          // the account rather than the inquiry, and only one may be given.
           'reference-id': token,
           'redirect-uri': SITE + '/#/you',
         },
       },
-      meta: {
-        'auto-create-account-reference-id': token,
-        'auto-create-one-time-link': true,
-      },
+      meta: { 'auto-create-one-time-link': true },
     }, PERSONA_KEY.value());
   } catch (e) {
     console.error('[ageStart]', e.message);
