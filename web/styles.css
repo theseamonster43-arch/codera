@@ -1307,3 +1307,22 @@ h1.title .i { width: 1em; height: 1em; }
    the whole thing goes, because a phone can't run it anyway. */
 @media (max-width: 1080px) { .install span { display: none; } .install { padding: 0 10px; } }
 @media (max-width: 720px)  { .install { display: none; } }
+
+/* The age check, sitting in Codera rather than away from it ------------------------- */
+.face {
+  position: fixed; inset: 0; z-index: 120; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.62); padding: 20px;
+}
+.face-in {
+  width: min(460px, 100%); height: min(680px, 90vh);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 18px;
+}
+.face-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 14px 12px 18px; border-bottom: 1px solid var(--border);
+}
+.face-top b { font-size: 15px; }
+/* Persona draws its own frame in here and sizes it to the box. */
+.face-frame { flex: 1; min-height: 0; position: relative; }
+.face-frame iframe { width: 100%; height: 100%; border: 0; display: block; }

@@ -903,6 +903,37 @@ function linkRow(links, mine) {
  * photo of somebody else's face is what its liveness step is there to catch —
  * and the result comes back to a Cloud Function, never to this page.
  */
+// Persona's own client, loaded from their CDN and pinned. It is a UMD bundle,
+// so it puts `Persona` on the window and needs no build step here.
+const PERSONA_JS = 'https://cdn.withpersona.com/dist/persona-v5.9.0.js';
+let personaLoading = null;
+
+function loadPersona() {
+  if (window.Persona) return Promise.resolve(window.Persona);
+  if (personaLoading) return personaLoading;
+  personaLoading = new Promise((ok, no) => {
+    const tag = document.createElement('script');
+    tag.src = PERSONA_JS;
+    tag.onload = () => (window.Persona ? ok(window.Persona) : no(new Error('no client')));
+    tag.onerror = () => no(new Error('could not load'));
+    document.head.appendChild(tag);
+  });
+  return personaLoading;
+}
+
+/**
+ * The age check, inside Codera rather than away from it.
+ *
+ * Persona draws its own flow in an iframe, so the words inside it wear the
+ * theme set on their side — there is no reaching into another origin to
+ * restyle it, by us or anyone. What this does is put that frame in a Codera
+ * panel: our ground, our type around it, our way of closing it, and no moment
+ * where someone is thrown out to a stranger's website mid-check.
+ *
+ * Nothing here decides anything. The client reports what happened so the panel
+ * can close politely, but the record is written by the webhook, from Persona's
+ * own account of it, and the page only changes when that lands.
+ */
 function startAgeCheck() {
   if (!FACE_CHECKS) {
     toast('Age checks aren’t open yet. They’re coming shortly.');
@@ -911,31 +942,76 @@ function startAgeCheck() {
   sheet(`
     <h2>Confirm your age</h2>
     <p class="note">Links people add lead off Codera, so opening them — and adding
-      your own — is for ${ADULT_AGE} and over. Stripe, who already handle payments
-      here, check a photo ID against a selfie of you. <b>Codera never sees either
-      picture</b> — all we are told is the date of birth on the document, and all
-      we keep is the day you turn ${ADULT_AGE}.</p>
+      your own — is for ${ADULT_AGE} and over. Persona, an independent age-check
+      service, works it out from a short look at your face. <b>Codera never sees
+      the picture</b>, Persona deletes it once it has an answer, and all we are
+      told is whether you are over ${ADULT_AGE}.</p>
     <p class="note" id="faceErr" hidden style="color:var(--red)"></p>
     <button class="brand-btn" id="faceGo">Start</button>`);
+
   el('faceGo').onclick = async () => {
     const go = el('faceGo');
-    go.disabled = true;
-    go.textContent = 'Opening…';
-    try {
-      // The page Stripe hosts. Everything that decides the answer happens there
-      // and comes back to a Cloud Function — nothing this page says counts, so
-      // there is nothing here worth lying to.
-      const res = await httpsCallable(fns, 'ageStart')();
-      closeSheet();
-      window.open(res.data.url, '_blank', 'noopener');
-      toast('Finish the check in the new tab. This page updates by itself.');
-    } catch (e) {
+    const fail = why => {
       const err = el('faceErr');
-      err.textContent = message(e);
+      err.textContent = why;
       err.hidden = false;
       go.disabled = false;
       go.textContent = 'Start';
+    };
+
+    go.disabled = true;
+    go.textContent = 'Opening…';
+
+    let started;
+    try {
+      started = await httpsCallable(fns, 'ageStart')();
+    } catch (e) {
+      return fail(message(e));
     }
+
+    let client;
+    try {
+      client = await loadPersona();
+    } catch (e) {
+      // Their script is blocked or unreachable. The hosted page still works,
+      // so the check is never lost to an ad blocker.
+      closeSheet();
+      window.open(started.data.url, '_blank', 'noopener');
+      toast('Finish the check in the new tab. This page updates by itself.');
+      return;
+    }
+
+    closeSheet();
+    const panel = document.createElement('div');
+    panel.className = 'face';
+    panel.innerHTML = `
+      <div class="face-in">
+        <div class="face-top">
+          <b>Confirming your age</b>
+          <button class="pill" id="faceClose">Close</button>
+        </div>
+        <div class="face-frame" id="faceFrame"></div>
+      </div>`;
+    document.body.appendChild(panel);
+
+    const shut = () => { try { panel.remove(); } catch (e) { /* gone already */ } };
+    el('faceClose').onclick = shut;
+    panel.onclick = e => { if (e.target === panel) shut(); };
+
+    new client.Client({
+      inquiryId: started.data.inquiry,
+      parent: el('faceFrame'),
+      frameWidth: '100%',
+      frameHeight: '100%',
+      onComplete: () => {
+        shut();
+        // Not "you're verified": the record is the webhook's to write, and it
+        // may be a second or two behind. The row opens by itself when it lands.
+        toast('Thanks — that’s with Persona now. This page updates by itself.');
+      },
+      onCancel: shut,
+      onError: () => { shut(); toast('That didn’t finish. You can try again.'); },
+    }).open();
   };
 }
 
