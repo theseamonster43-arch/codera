@@ -81,7 +81,7 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
       }
-      .frame(maxWidth: 1180)
+      .frame(maxWidth: Brand.readable)
       .frame(maxWidth: .infinity)
     }
     .task { await store.loadProfile(uid) }

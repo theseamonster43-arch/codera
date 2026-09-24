@@ -62,7 +62,6 @@ struct Shell: View {
         label("Shorts", "shorts", filled: tab == 1)
       }
 
-#if !os(visionOS)
       Tab(value: 2) {
         Color.clear
       } label: {
@@ -76,7 +75,6 @@ struct Shell: View {
         }
 #endif
       }
-#endif
 
       Tab(value: 3) {
         FollowingView()
@@ -119,17 +117,19 @@ struct Shell: View {
     .safeAreaPadding(.vertical, unfolded ? 10 : 0)
     .modifier(SideRail(on: unfolded))
     .modifier(BarAtTheBottom())
+#endif
     .sheet(isPresented: $creating) { CreateSheet(pick: { kind in making = kind }) }
     // Raised by the shell, not by the sheet: a sheet cannot open a full-screen
     // cover while it is itself on screen, which is why these did nothing.
     .fullScreenCover(item: $making) { kind in
       switch kind {
       case "post": ComposePost()
+#if !os(visionOS)
       case "live": LiveStream()
+#endif
       default: ComposeVideo(kind: kind)
       }
     }
-#endif
   }
 
 }

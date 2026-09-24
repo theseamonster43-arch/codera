@@ -81,7 +81,7 @@ struct HomeView: View {
             ForEach(store.posts) { PostCard(post: $0) }
           }
           .padding(.horizontal, 14)
-          .frame(maxWidth: 1180)
+          .frame(maxWidth: Brand.readable)
           .frame(maxWidth: .infinity)
         }
       }

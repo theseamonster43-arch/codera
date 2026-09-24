@@ -146,7 +146,7 @@ struct FollowingView: View {
           }
         }
         .padding(.top, 12)
-        .frame(maxWidth: 1180)
+        .frame(maxWidth: Brand.readable)
         .frame(maxWidth: .infinity)
       }
       }

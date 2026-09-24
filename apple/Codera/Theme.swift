@@ -32,6 +32,18 @@ enum Brand {
   /// Behind a video, black in either appearance.
   static let stage = Color.black
 
+  /// How wide a column of posts is allowed to get.
+  ///
+  /// On a phone or a laptop 1180 is about as wide as a line of text should
+  /// run. A Vision Pro window is dragged out to whatever size suits the room,
+  /// and stopping at 1180 there leaves the glass half empty with the feed
+  /// stranded in the middle — so it keeps up instead.
+#if os(visionOS)
+  static let readable: CGFloat = 2200
+#else
+  static let readable: CGFloat = 1180
+#endif
+
   /// A hairline of the brand green rather than a grey rule.
   static let line = shiftingAlpha(dark: (0x22C55E, 0.12), light: (0x166534, 0.14))
 
@@ -214,6 +226,10 @@ struct Sheeted<Content: View>: View {
       .frame(maxWidth: .infinity)
     }
     .background(Brand.bg)
+#if !os(visionOS)
+    // There is no keyboard to dismiss by scrolling on a Vision Pro, and the
+    // modifier does not exist there.
     .scrollDismissesKeyboard(.interactively)
+#endif
   }
 }
