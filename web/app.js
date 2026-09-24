@@ -1467,6 +1467,33 @@ const voteRef = (postId, uid) => doc(db, POSTS, postId, 'votes', uid);
  * the totals can never drift from the votes behind them. Posts and live streams
  * are voted on alike; `coll` says which. Resolves to the vote now standing.
  */
+/**
+ * What the thumbs are showing right now, before the database has agreed.
+ *
+ * A vote is a transaction — a read and a write — and on a slow connection that
+ * is the better part of a second during which nothing on screen moves. People
+ * press again, which either does nothing or undoes what they just did, and the
+ * whole thing reads as broken. So the thumbs answer immediately and the
+ * database catches up; if it refuses, the thumbs go back to what it says.
+ */
+const pretending = new Map();
+
+/** Draws a pair of thumbs at a given state, wherever they are on the page. */
+function paintThumbs(id, mine, likes, dislikes) {
+  const up = document.querySelector('[data-vote="1"]') || el('upBtn');
+  const down = document.querySelector('[data-vote="-1"]') || el('downBtn');
+  if (!up || !down) return;
+  up.classList.toggle('on', mine === 1);
+  down.classList.toggle('on', mine === -1);
+  down.classList.toggle('down', mine === -1);
+  const upSvg = up.querySelector('svg');
+  const downSvg = down.querySelector('svg');
+  if (upSvg) upSvg.outerHTML = I.up(mine === 1);
+  if (downSvg) downSvg.outerHTML = I.down(mine === -1);
+  if (el('upN') && likes !== undefined) el('upN').textContent = compact(Math.max(0, likes));
+  if (el('downN') && dislikes !== undefined) el('downN').textContent = compact(Math.max(0, dislikes));
+}
+
 async function voteOn(coll, id, want) {
   const u = auth.currentUser;
   if (!u) return 0;
@@ -1495,7 +1522,26 @@ async function voteOn(coll, id, want) {
 }
 
 async function vote(postId, want) {
-  const now = await voteOn(POSTS, postId, want);
+  // Shown before it is sent, and remembered so the watcher does not undo it
+  // with the older value it is still holding.
+  const post = byId(postId) || {};
+  const was = pretending.has(postId) ? pretending.get(postId) : (myVoteNow || 0);
+  const next = was === want ? 0 : want;
+  const likes = (post.likeCount || 0) + (next === 1 ? 1 : 0) - (was === 1 ? 1 : 0);
+  const dislikes = (post.dislikeCount || 0) + (next === -1 ? 1 : 0) - (was === -1 ? 1 : 0);
+  pretending.set(postId, next);
+  paintThumbs(postId, next, likes, dislikes);
+
+  let now;
+  try {
+    now = await voteOn(POSTS, postId, want);
+  } catch (e) {
+    // Refused — put the thumbs back where the database has them.
+    pretending.delete(postId);
+    paintThumbs(postId, was, post.likeCount || 0, post.dislikeCount || 0);
+    throw e;
+  }
+  pretending.delete(postId);
   // A like says more about what someone wants than a view does; a dislike, less.
   if (now) nudge(topicsOf(byId(postId)), now === 1 ? WEIGHT.like : WEIGHT.dislike);
 }
@@ -1509,6 +1555,9 @@ function watchVoteOn(coll, id, onChange) {
 }
 
 const watchMyVote = (postId, onChange) => watchVoteOn(POSTS, postId, onChange);
+
+/** The vote the database last reported for the post being looked at. */
+let myVoteNow = 0;
 
 async function addComment(postId, text) {
   const who = author();
@@ -3277,16 +3326,18 @@ function pageWatch(main, id) {
           ${p.code ? `<pre class="code" style="margin-top:12px">${esc(p.code)}</pre>` : ''}
         </div>` : ''}
 
-        <h2 class="sub" id="cN">${plural(p.commentCount, 'comment')}</h2>
-        <div class="cbox">
-          ${avatar({ authorName: profile.username || me.displayName, authorPhoto: profile.photoUrl || me.photoURL }, 36)}
-          <textarea id="cText" placeholder="Add a comment" maxlength="1000"></textarea>
-          <button class="pill" id="cSend" style="height:42px">Comment</button>
-        </div>
-        <div id="cList">${spinner()}</div>
       </div>
 
       <aside>
+        <details class="cdrop" id="cWrap">
+          <summary><h2 class="sub" id="cN">${plural(p.commentCount, 'comment')}</h2></summary>
+          <div class="cbox">
+            ${avatar({ authorName: profile.username || me.displayName, authorPhoto: profile.photoUrl || me.photoURL }, 36)}
+            <textarea id="cText" placeholder="Add a comment" maxlength="1000"></textarea>
+            <button class="pill" id="cSend" style="height:42px">Comment</button>
+          </div>
+          <div id="cList">${spinner()}</div>
+        </details>
         <h2 class="sub" style="margin-top:0">Up next</h2>
         <div class="next">${next.map(o => `
           <div class="row" data-open="${o.id}">
@@ -3311,16 +3362,19 @@ function pageWatch(main, id) {
     vp.querySelector('video').play().catch(() => {});
   }
 
+  // Open where there is a column to put it in, folded where there is not:
+  // stacked, an unfolded comment list pushes Up next off the bottom of the page.
+  const cWrap = el('cWrap');
+  if (cWrap) cWrap.open = window.matchMedia('(min-width: 1151px)').matches;
+
   // My own vote, live, so the thumbs show what I already pressed.
   teardown.push(watchMyVote(p.id, v => {
     if (el('reportBtn')) el('reportBtn').onclick = () => openReport(p);
-    const up = el('upBtn'), down = el('downBtn');
-    if (!up || !down) return;
-    up.classList.toggle('on', v === 1);
-    down.classList.toggle('on', v === -1);
-    down.classList.toggle('down', v === -1);
-    up.querySelector('svg').outerHTML = I.up(v === 1);
-    down.querySelector('svg').outerHTML = I.down(v === -1);
+    myVoteNow = v;
+    // A press still on its way owns the thumbs until it lands; otherwise this
+    // would flick them back to the old value for as long as the trip takes.
+    if (pretending.has(p.id)) return;
+    paintThumbs(p.id, v);
   }));
 
   teardown.push(onSnapshot(
