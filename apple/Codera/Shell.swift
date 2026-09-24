@@ -32,40 +32,72 @@ struct Shell: View {
 #endif
   }
 
+  /// An icon on the bar; an icon and its name in the side rail, where a row
+  /// with nothing written in it reads as an empty line.
+  @ViewBuilder
+  private func label(_ name: String, _ icon: String, filled: Bool) -> some View {
+    let art = Image(filled ? icon + "Filled" : icon).renderingMode(.template)
+#if os(visionOS)
+    Label { Text(name) } icon: { art }
+#else
+    if unfolded {
+      Label { Text(name) } icon: { art }
+    } else {
+      art.accessibilityLabel(name)
+    }
+#endif
+  }
+
   var body: some View {
     TabView(selection: $tab) {
       Tab(value: 0) {
         HomeView()
       } label: {
-        Image(tab == 0 ? "homeFilled" : "home").renderingMode(.template).accessibilityLabel("Home")
+        label("Home", "home", filled: tab == 0)
       }
 
       Tab(value: 1) {
         ShortsView()
       } label: {
-        Image(tab == 1 ? "shortsFilled" : "shorts").renderingMode(.template).accessibilityLabel("Shorts")
+        label("Shorts", "shorts", filled: tab == 1)
       }
 
 #if !os(visionOS)
       Tab(value: 2) {
         Color.clear
       } label: {
-        Image("plus").renderingMode(.template).accessibilityLabel("Create")
+#if os(visionOS)
+        Label { Text("Create") } icon: { Image("plus").renderingMode(.template) }
+#else
+        if unfolded {
+          Label { Text("Create") } icon: { Image("plus").renderingMode(.template) }
+        } else {
+          Image("plus").renderingMode(.template).accessibilityLabel("Create")
+        }
+#endif
       }
 #endif
 
       Tab(value: 3) {
         FollowingView()
       } label: {
-        Image(tab == 3 ? "followedFilled" : "followed").renderingMode(.template).accessibilityLabel("Following")
+        label("Following", "followed", filled: tab == 3)
       }
 
       Tab(value: 4) {
         YouView()
       } label: {
-        Image(tab == 4 ? "youFilled" : "you").renderingMode(.template).accessibilityLabel("You")
+        label("You", "you", filled: tab == 4)
       }
     }
+#if DEBUG
+    // Launching with -openCompose post (or short, video, live) opens that
+    // composer straight away, which is how the shell-presents-the-composer
+    // path gets checked on a simulator with no way to tap.
+    .task {
+      if let kind = UserDefaults.standard.string(forKey: "openCompose") { making = kind }
+    }
+#endif
     .onChange(of: tab) { old, new in
       // Create opens on top of wherever you were, rather than being a page.
       if new == 2 {
@@ -86,7 +118,7 @@ struct Shell: View {
     .safeAreaPadding(.horizontal, unfolded ? 16 : 0)
     .safeAreaPadding(.vertical, unfolded ? 10 : 0)
     .modifier(SideRail(on: unfolded))
-    .background(BottomTabBar().frame(width: 0, height: 0))
+    .modifier(BarAtTheBottom())
     .sheet(isPresented: $creating) { CreateSheet(pick: { kind in making = kind }) }
     // Raised by the shell, not by the sheet: a sheet cannot open a full-screen
     // cover while it is itself on screen, which is why these did nothing.
@@ -138,6 +170,20 @@ struct BottomTabBar: UIViewRepresentable {
 #endif
 
 #if !os(visionOS)
+/**
+ * The bar along the bottom on an iPad.
+ *
+ * iPadOS 26 floats its tab bar at the top of the window. Asking the tab bar
+ * controller to lay itself out compactly drew a second bar underneath and left
+ * the first where it was, so this asks for the style instead: one bar, and the
+ * one that belongs at the bottom.
+ */
+struct BarAtTheBottom: ViewModifier {
+  func body(content: Content) -> some View {
+    content.tabViewStyle(.tabBarOnly)
+  }
+}
+
 /**
  * The tabs down the side rather than along the bottom, which is what an
  * unfolded phone has the room for. Folded, it is the bar again, untouched.

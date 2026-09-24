@@ -6,6 +6,22 @@ struct RootView: View {
 
   var body: some View {
     Group {
+#if DEBUG
+      // Launching with -uiPreview 1 shows the shell without signing in, so
+      // the tabs and the sheets can be looked at on a simulator. Debug builds
+      // only, so it cannot ship, and it grants nothing — every read and write
+      // still goes through the rules, which answer an unsigned-in app with
+      // nothing.
+      if UserDefaults.standard.bool(forKey: "uiPreview") {
+        Shell()
+      } else if !store.ready {
+        ProgressView()
+      } else if store.user == nil {
+        SignInView()
+      } else {
+        Shell()
+      }
+#else
       if !store.ready {
         ProgressView()
       } else if store.user == nil {
@@ -13,6 +29,7 @@ struct RootView: View {
       } else {
         Shell()
       }
+#endif
     }
   }
 }
