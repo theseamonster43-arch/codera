@@ -215,10 +215,48 @@ struct SignInView: View {
       }
       .font(Sans.semibold(13.5))
       .tint(Brand.blue)
+
+      // The other ways in. The sheet is Safari's, drawn over Codera and closing
+      // itself when the provider is done — neither Google nor GitHub will sign
+      // anyone in inside a view the app controls, and nor should they.
+      HStack(spacing: 10) {
+        Rectangle().fill(.quaternary).frame(height: 1)
+        Text("or").font(Sans.medium(12)).foregroundStyle(.secondary)
+        Rectangle().fill(.quaternary).frame(height: 1)
+      }
+      .padding(.vertical, 2)
+
+      provider("Continue with Google", "google")
+      provider("Continue with GitHub", "github")
     }
     .textFieldStyle(.roundedBorder)
     .padding(24)
     .frame(maxWidth: 420)
+  }
+
+  private func provider(_ title: String, _ which: String) -> some View {
+    Button {
+      busy = true
+      error = ""
+      Task {
+        do {
+          try await Handoff.shared.signIn(with: which)
+        } catch {
+          // Backing out of the sheet is not a failure and says nothing.
+          if let words = error.localizedDescription as String?, !words.isEmpty {
+            self.error = words
+          }
+        }
+        busy = false
+      }
+    } label: {
+      Text(title)
+        .font(Sans.semibold(14.5))
+        .frame(maxWidth: .infinity, minHeight: 46)
+    }
+    .buttonStyle(.bordered)
+    .tint(.primary)
+    .disabled(busy)
   }
 
   private func go() {

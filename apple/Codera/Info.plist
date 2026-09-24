@@ -41,5 +41,18 @@
 	<string>Codera uses the microphone when you go live or record a short.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Codera uses your photos when you add a picture or a video to a post.</string>
+	<!-- The address the sign-in sheet hands its answer back to. Nothing else
+	     opens it, and what arrives is checked against the request that asked. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.codera</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>codera</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
