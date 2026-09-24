@@ -140,3 +140,67 @@ struct Mark: View {
       )
   }
 }
+
+/**
+ * A titled block of a screen, the way Codera draws one.
+ *
+ * SwiftUI's Form and Section are iOS Settings in a trench coat: inset grouped
+ * rows, grey headers in small caps, chevrons and separators that belong to
+ * Apple's design and not to ours. A Codera screen is cards on the app's own
+ * ground, with the heading in Scoutie Sans above each one.
+ */
+struct Panel<Content: View>: View {
+  var title: String?
+  @ViewBuilder var content: Content
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      if let title {
+        Text(title)
+          .font(Sans.bold(13))
+          .foregroundStyle(Brand.muted)
+          .padding(.leading, 4)
+      }
+      VStack(alignment: .leading, spacing: 12) {
+        content
+      }
+      .padding(14)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Brand.line, lineWidth: 1)
+      )
+    }
+  }
+}
+
+/** Field's taller sibling, for a box that text grows inside. */
+struct Boxed: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .padding(10)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Brand.bg3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(Brand.line, lineWidth: 1)
+      )
+  }
+}
+
+/** The page a sheet sits on: Codera's ground, scrolling, with room at the sides. */
+struct Sheeted<Content: View>: View {
+  @ViewBuilder var content: Content
+
+  var body: some View {
+    ScrollView {
+      VStack(alignment: .leading, spacing: 18) {
+        content
+      }
+      .padding(16)
+      .frame(maxWidth: 620)
+      .frame(maxWidth: .infinity)
+    }
+    .background(Brand.bg)
+    .scrollDismissesKeyboard(.interactively)
+  }
+}

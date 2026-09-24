@@ -35,7 +35,7 @@ struct RootView: View {
     // Set once here so every screen inherits it instead of each one remembering.
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .background(Brand.bg)
-    .tint(Brand.green)
+    .tint(Brand.blue)
     .foregroundStyle(Brand.text)
   }
 }
@@ -252,7 +252,7 @@ struct SignInView: View {
         error = ""
       }
       .font(Sans.semibold(13.5))
-      .tint(Brand.green)
+      .tint(Brand.blue)
 
       // The other ways in. The sheet is Safari's, drawn over Codera and closing
       // itself when the provider is done — neither Google nor GitHub will sign

@@ -26,24 +26,43 @@ struct ComposePost: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        Section {
-          TextField("Title", text: $title).font(Sans.bold(16))
-          TextField("Say more (optional)", text: $body_, axis: .vertical).lineLimit(3...8)
+      Sheeted {
+        Panel {
+          TextField("Title", text: $title)
+            .font(Sans.bold(16))
+            .modifier(Field())
+          TextField("Say more (optional)", text: $body_, axis: .vertical)
+            .lineLimit(3...8)
+            .font(Sans.regular(15))
+            .modifier(Boxed())
         }
 
-        Section("Code (optional)") {
+        Panel(title: "Code") {
           TextEditor(text: $code)
             .font(.system(.footnote, design: .monospaced))
-            .frame(minHeight: 110)
-          Picker("Language", selection: $lang) {
-            ForEach(langs, id: \.self) { Text($0.uppercased()).tag($0) }
+            .scrollContentBackground(.hidden)
+            .frame(minHeight: 120)
+            .modifier(Boxed())
+
+          HStack {
+            Text("Language").font(Sans.semibold(14))
+            Spacer()
+            Picker("", selection: $lang) {
+              ForEach(langs, id: \.self) { Text($0.uppercased()).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .tint(Brand.blue)
           }
         }
 
-        Section {
+        Panel(title: "Picture") {
           PhotosPicker(selection: $picked, matching: .images) {
-            Label(image == nil ? "Add a picture" : "Picture added", systemImage: "photo")
+            HStack(spacing: 10) {
+              Image(systemName: "photo").font(.system(size: 17, weight: .semibold)).frame(width: 22)
+              Text(image == nil ? "Add a picture" : "Picture added").font(Sans.semibold(15))
+              Spacer(minLength: 0)
+            }
+            .foregroundStyle(Brand.blue)
           }
           if let image, let ui = UIImage(data: image) {
             Image(uiImage: ui).resizable().scaledToFill().frame(height: 160).clipped()
@@ -57,6 +76,8 @@ struct ComposePost: View {
       }
       .navigationTitle("New post")
       .navigationBarTitleDisplayMode(.inline)
+      .toolbarBackground(Brand.bg2, for: .navigationBar)
+      .toolbarBackground(.visible, for: .navigationBar)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         ToolbarItem(placement: .confirmationAction) {
@@ -103,10 +124,15 @@ struct ComposeVideo: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        Section {
+      Sheeted {
+        Panel {
           PhotosPicker(selection: $picked, matching: .videos) {
-            Label(file == nil ? "Choose a \(word)" : "Ready to upload", systemImage: "film")
+            HStack(spacing: 10) {
+              Image(kind == "short" ? "shorts" : "home").renderingMode(.template).resizable().scaledToFit().frame(width: 22, height: 22)
+              Text(file == nil ? "Choose a \(word)" : "Ready to upload").font(Sans.semibold(15))
+              Spacer(minLength: 0)
+            }
+            .foregroundStyle(Brand.blue)
           }
           if kind == "short" {
             Text("Shorts are tall videos, under a minute.")
@@ -114,13 +140,23 @@ struct ComposeVideo: View {
           }
         }
 
-        Section {
-          TextField("Title", text: $title).font(Sans.bold(16))
-          TextField("Description (optional)", text: $about, axis: .vertical).lineLimit(2...6)
+        Panel {
+          TextField("Title", text: $title)
+            .font(Sans.bold(16))
+            .modifier(Field())
+          TextField("Description (optional)", text: $about, axis: .vertical)
+            .lineLimit(2...6)
+            .font(Sans.regular(15))
+            .modifier(Boxed())
         }
 
         if busy {
-          Section { ProgressView(value: progress) { Text("Uploading… \(Int(progress * 100))%").font(Sans.medium(13)) } }
+          Panel {
+            ProgressView(value: progress)
+              .tint(Brand.blue)
+            Text("Uploading… \(Int(progress * 100))%")
+              .font(Sans.medium(13)).foregroundStyle(Brand.muted)
+          }
         }
         if !error.isEmpty {
           Text(error).font(Sans.medium(13)).foregroundStyle(Brand.red)
@@ -128,6 +164,8 @@ struct ComposeVideo: View {
       }
       .navigationTitle(kind == "short" ? "New short" : "New video")
       .navigationBarTitleDisplayMode(.inline)
+      .toolbarBackground(Brand.bg2, for: .navigationBar)
+      .toolbarBackground(.visible, for: .navigationBar)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         ToolbarItem(placement: .confirmationAction) {
@@ -210,6 +248,8 @@ struct EditProfile: View {
       }
       .navigationTitle("Edit page")
       .navigationBarTitleDisplayMode(.inline)
+      .toolbarBackground(Brand.bg2, for: .navigationBar)
+      .toolbarBackground(.visible, for: .navigationBar)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         ToolbarItem(placement: .confirmationAction) {

@@ -209,13 +209,22 @@ struct CreateSheet: View {
 
   var body: some View {
     NavigationStack {
-      List {
+      // Cards on Codera's ground, not an inset-grouped list: a List draws
+      // Apple's separators and insets, which is what made this read as a
+      // settings screen rather than a place to start something.
+      ScrollView {
+        VStack(spacing: 10) {
         row("post", "Post", "Share a question, a snippet or a thought.", "code")
         row("short", "Short", "A tall video, under a minute.", "shorts")
         row("video", "Video", "A full tutorial.", "home")
         row("live", "Go live", "Stream to whoever is watching.", "followed")
+        }
+        .padding(16)
       }
+      .background(Brand.bg)
       .navigationTitle("Create")
+      .toolbarBackground(Brand.bg2, for: .navigationBar)
+      .toolbarBackground(.visible, for: .navigationBar)
       .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
     }
     .presentationDetents([.medium])
@@ -227,14 +236,25 @@ struct CreateSheet: View {
       dismiss()
       pick(kind)
     } label: {
-      HStack(spacing: 12) {
-        Image(icon).renderingMode(.template).foregroundStyle(Brand.blue).frame(width: 26)
+      HStack(spacing: 14) {
+        Image(icon).renderingMode(.template)
+          .resizable().scaledToFit()
+          .frame(width: 22, height: 22)
+          .foregroundStyle(Brand.blue)
+          .frame(width: 44, height: 44)
+          .background(Brand.bg3, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         VStack(alignment: .leading, spacing: 2) {
-          Text(title).font(Sans.bold(15)).foregroundStyle(.primary)
+          Text(title).font(Sans.bold(15.5)).foregroundStyle(Brand.text)
           Text(detail).font(Sans.regular(13)).foregroundStyle(Brand.muted)
         }
+        Spacer(minLength: 0)
       }
-      .padding(.vertical, 4)
+      .padding(12)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Brand.line, lineWidth: 1)
+      )
     }
     .buttonStyle(.plain)
   }
