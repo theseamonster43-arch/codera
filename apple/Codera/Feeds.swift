@@ -104,6 +104,11 @@ struct FollowingView: View {
   var body: some View {
     NavigationStack {
       ScrollView {
+      // The page says what it is, on every device. A Vision Pro and an unfolded
+      // phone put the tabs down the side, where the name of the page is not on
+      // screen at all unless the page says it.
+      FollowingHeader().padding(.top, 8)
+
       if store.following.isEmpty {
         ContentUnavailableView("Not following anyone yet", image: "followed",
                                description: Text("Open someone's name on a post and press Follow. Their new posts land here."))
@@ -147,5 +152,22 @@ struct FollowingView: View {
       }
       .navigationDestination(for: String.self) { ProfileView(uid: $0) }
     }
+  }
+}
+
+
+/** The heading on Following, drawn the way Home draws its own. */
+struct FollowingHeader: View {
+  var body: some View {
+    HStack(spacing: 10) {
+      Image("followedFilled").renderingMode(.template)
+        .resizable().scaledToFit()
+        .frame(width: 22, height: 22)
+        .foregroundStyle(Brand.blue)
+      Text("Following").font(Sans.heavy(19))
+      Spacer()
+    }
+    .padding(.horizontal, 16)
+    .padding(.bottom, 12)
   }
 }

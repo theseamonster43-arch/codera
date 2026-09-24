@@ -227,23 +227,37 @@ struct EditProfile: View {
 
   var body: some View {
     NavigationStack {
-      Form {
-        Section("Description") {
+      Sheeted {
+        Panel(title: "Description") {
           TextField("Say what you post about.", text: $bio, axis: .vertical)
             .lineLimit(3...6)
             .font(Sans.regular(15))
+            .modifier(Boxed())
         }
 
-        Section("Pictures") {
+        Panel(title: "Pictures") {
           PhotosPicker(selection: $photo, matching: .images) {
-            Label("Change your picture", systemImage: "person.crop.circle")
+            HStack(spacing: 10) {
+              Image("you").renderingMode(.template).resizable().scaledToFit()
+                .frame(width: 20, height: 20)
+              Text("Change your picture").font(Sans.semibold(15))
+              Spacer(minLength: 0)
+            }
+            .foregroundStyle(Brand.blue)
           }
+          Divider().overlay(Brand.line)
           PhotosPicker(selection: $banner, matching: .images) {
-            Label("Change your banner", systemImage: "photo.on.rectangle")
+            HStack(spacing: 10) {
+              Image(systemName: "photo").font(.system(size: 17, weight: .semibold))
+                .frame(width: 20)
+              Text("Change your banner").font(Sans.semibold(15))
+              Spacer(minLength: 0)
+            }
+            .foregroundStyle(Brand.blue)
           }
         }
 
-        if busy { ProgressView() }
+        if busy { ProgressView().tint(Brand.blue) }
         if !error.isEmpty { Text(error).font(Sans.medium(13)).foregroundStyle(Brand.red) }
       }
       .navigationTitle("Edit page")

@@ -93,6 +93,19 @@ enum Sans {
 
     UINavigationBar.appearance().titleTextAttributes = [.font: title]
     UINavigationBar.appearance().largeTitleTextAttributes = [.font: big]
+
+    // Cancel, Close, Post, Upload — every toolbar button.
+    if let action = UIFont(name: "ScoutieSans-SemiBold", size: 17) {
+      for state in [UIControl.State.normal, .highlighted, .disabled, .selected] {
+        UIBarButtonItem.appearance().setTitleTextAttributes([.font: action], for: state)
+      }
+    }
+    // The menu a Picker opens, and the text inside a field.
+    if let body = UIFont(name: "ScoutieSans-Medium", size: 15) {
+      UISegmentedControl.appearance().setTitleTextAttributes([.font: body], for: .normal)
+      UISegmentedControl.appearance().setTitleTextAttributes([.font: body], for: .selected)
+      UITextField.appearance().defaultTextAttributes = [.font: body]
+    }
 #endif
   }
 }
