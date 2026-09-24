@@ -16,6 +16,8 @@ struct Shell: View {
   @State private var tab = 0
   @State private var previous = 0
   @State private var creating = false
+  /// What Create was asked for, once its sheet has closed out of the way.
+  @State private var making: String?
 #if !os(visionOS)
   @Environment(\.horizontalSizeClass) private var width
 #endif
@@ -76,12 +78,25 @@ struct Shell: View {
     // Curved screens and windows — a Vision Pro's, an unfolded phone's — cut the
     // corners off anything that runs to the edge, so the content keeps clear of them.
 #if os(visionOS)
-    .safeAreaPadding(.horizontal, 20)
+    // A Vision Pro window is rounded hard enough to take a bite out of a corner
+    // in both directions, so both are kept clear.
+    .safeAreaPadding(.horizontal, 22)
+    .safeAreaPadding(.vertical, 16)
 #else
-    .safeAreaPadding(.horizontal, unfolded ? 14 : 0)
+    .safeAreaPadding(.horizontal, unfolded ? 16 : 0)
+    .safeAreaPadding(.vertical, unfolded ? 10 : 0)
     .modifier(SideRail(on: unfolded))
     .background(BottomTabBar().frame(width: 0, height: 0))
-    .sheet(isPresented: $creating) { CreateSheet() }
+    .sheet(isPresented: $creating) { CreateSheet(pick: { kind in making = kind }) }
+    // Raised by the shell, not by the sheet: a sheet cannot open a full-screen
+    // cover while it is itself on screen, which is why these did nothing.
+    .fullScreenCover(item: $making) { kind in
+      switch kind {
+      case "post": ComposePost()
+      case "live": LiveStream()
+      default: ComposeVideo(kind: kind)
+      }
+    }
 #endif
   }
 
@@ -142,8 +157,9 @@ struct SideRail: ViewModifier {
 
 /** What Create makes. Each one opens the screen that makes it. */
 struct CreateSheet: View {
+  /// Told what was chosen. The shell opens it once this sheet has closed.
+  let pick: (String) -> Void
   @Environment(\.dismiss) private var dismiss
-  @State private var making: String?
 
   var body: some View {
     NavigationStack {
@@ -157,18 +173,13 @@ struct CreateSheet: View {
       .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
     }
     .presentationDetents([.medium])
-    .fullScreenCover(item: $making) { kind in
-      switch kind {
-      case "post": ComposePost()
-      case "live": LiveStream()
-      default: ComposeVideo(kind: kind)
-      }
-    }
   }
 
   private func row(_ kind: String, _ title: String, _ detail: String, _ icon: String) -> some View {
     Button {
-      making = kind
+      // Closed first, then opened: the two cannot be on screen at once.
+      dismiss()
+      pick(kind)
     } label: {
       HStack(spacing: 12) {
         Image(icon).renderingMode(.template).foregroundStyle(Brand.blue).frame(width: 26)
