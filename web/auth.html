@@ -45,8 +45,8 @@
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
   import {
-    getAuth, inMemoryPersistence, setPersistence, signInWithPopup, signOut,
-    GoogleAuthProvider, GithubAuthProvider,
+    getAuth, browserSessionPersistence, setPersistence, signInWithRedirect,
+    getRedirectResult, signOut, GoogleAuthProvider, GithubAuthProvider,
   } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js';
 
   const app = initializeApp({
@@ -64,42 +64,80 @@
 
   const go = document.getElementById('go');
   const err = document.getElementById('err');
-  go.textContent = provider === 'github' ? 'Continue with GitHub' : 'Continue with Google';
-  document.getElementById('title').textContent = 'Sign in with ' + (provider === 'github' ? 'GitHub' : 'Google');
+  const lede = document.getElementById('lede');
+  const named = provider === 'github' ? 'GitHub' : 'Google';
+  go.textContent = 'Continue with ' + named;
+  document.getElementById('title').textContent = 'Signing in with ' + named;
+
+  const stop = why => {
+    lede.textContent = '';
+    go.hidden = false;
+    go.disabled = false;
+    err.textContent = why;
+    err.hidden = false;
+  };
 
   if (!/^[A-Za-z0-9_-]{16,128}$/.test(state)) {
-    go.disabled = true;
-    err.textContent = 'Open this from the Codera app.';
-    err.hidden = false;
+    go.hidden = true;
+    stop('Open this from the Codera app.');
+  } else {
+    start();
   }
 
-  go.onclick = async () => {
-    go.disabled = true;
-    err.hidden = true;
+  /**
+   * Straight to the provider, with no button to press first.
+   *
+   * A redirect rather than a popup, for two reasons: a popup needs a tap to
+   * open at all, which is the extra step this page used to make people take;
+   * and the sheet this runs in has no room to put a second window anywhere.
+   * So the page arrives, hands over immediately, and the only screen anybody
+   * sees is Google's or GitHub's own.
+   */
+  async function start() {
+    go.hidden = true;
+    lede.textContent = 'Taking you to ' + named + '…';
     try {
-      // Nothing is kept in this browser: the app is the one being signed in.
-      await setPersistence(auth, inMemoryPersistence);
+      // Kept for this sheet only, and signed out again below: the app is the
+      // one being signed in, not this page.
+      await setPersistence(auth, browserSessionPersistence);
+
+      // Coming back from the provider, this is where the answer is waiting.
+      const result = await getRedirectResult(auth);
+      if (result) return hand(result);
+
       const p = provider === 'github' ? new GithubAuthProvider() : new GoogleAuthProvider();
       if (provider === 'github') p.addScope('user:email');
-      const result = await signInWithPopup(auth, p);
-      const cred = provider === 'github'
-        ? GithubAuthProvider.credentialFromResult(result)
-        : GoogleAuthProvider.credentialFromResult(result);
-      await signOut(auth);
-      const out = new URLSearchParams({ provider, state });
-      if (cred.idToken) out.set('idToken', cred.idToken);
-      if (cred.accessToken) out.set('accessToken', cred.accessToken);
-      document.getElementById('lede').textContent = 'Signed in. Going back to Codera…';
-      location.href = back + '?' + out.toString();
+      await signInWithRedirect(auth, p);
     } catch (e) {
-      go.disabled = false;
-      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
-      err.textContent = e.code === 'auth/account-exists-with-different-credential'
-        ? 'You already have a Codera account with that email. Sign in the way you did before.'
-        : 'That didn’t work. Try again.';
-      err.hidden = false;
+      said(e);
     }
-  };
+  }
+
+  async function hand(result) {
+    const cred = provider === 'github'
+      ? GithubAuthProvider.credentialFromResult(result)
+      : GoogleAuthProvider.credentialFromResult(result);
+    await signOut(auth);
+    const out = new URLSearchParams({ provider, state });
+    if (cred.idToken) out.set('idToken', cred.idToken);
+    if (cred.accessToken) out.set('accessToken', cred.accessToken);
+    lede.textContent = 'Signed in. Going back to Codera…';
+    location.href = back + '?' + out.toString();
+  }
+
+  function said(e) {
+    const code = e && e.code;
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+      stop('That was closed before it finished.');
+      return;
+    }
+    stop(code === 'auth/account-exists-with-different-credential'
+      ? 'You already have a Codera account with that email. Sign in the way you did before.'
+      : 'That didn’t work. Try again.');
+  }
+
+  // The button is only ever the way back from a failure.
+  go.onclick = () => { err.hidden = true; start(); };
 </script>
 </body>
 </html>

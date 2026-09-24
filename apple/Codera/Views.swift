@@ -181,6 +181,35 @@ struct YouView: View {
   }
 }
 
+/** Each provider's own mark, in the weight the rest of the screen is drawn at. */
+struct ProviderMark: View {
+  let which: String
+
+  var body: some View {
+    Group {
+      if which == "github" {
+        Image(systemName: "chevron.left.forwardslash.chevron.right")
+          .font(.system(size: 15, weight: .bold))
+      } else {
+        // Google's G, in Google's four colours, which is the one mark they ask
+        // not to be recoloured.
+        Text("G")
+          .font(.system(size: 19, weight: .bold, design: .rounded))
+          .foregroundStyle(
+            LinearGradient(
+              colors: [Color(red: 0.92, green: 0.26, blue: 0.21),
+                       Color(red: 0.98, green: 0.74, blue: 0.02),
+                       Color(red: 0.20, green: 0.66, blue: 0.33),
+                       Color(red: 0.26, green: 0.52, blue: 0.96)],
+              startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+          )
+      }
+    }
+    .frame(width: 22, height: 22)
+  }
+}
+
 struct SignInView: View {
   @EnvironmentObject var store: Store
   @State private var email = ""
@@ -199,7 +228,10 @@ struct SignInView: View {
       TextField("Email", text: $email)
         .textContentType(.emailAddress)
         .textInputAutocapitalization(.never).autocorrectionDisabled()
-      SecureField("Password", text: $password).textContentType(.password)
+        .modifier(Field())
+      SecureField("Password", text: $password)
+        .textContentType(.password)
+        .modifier(Field())
 
       if !error.isEmpty { Text(error).font(Sans.medium(13)).foregroundStyle(Brand.red) }
 
@@ -229,7 +261,6 @@ struct SignInView: View {
       provider("Continue with Google", "google")
       provider("Continue with GitHub", "github")
     }
-    .textFieldStyle(.roundedBorder)
     .padding(24)
     .frame(maxWidth: 420)
   }
@@ -250,12 +281,20 @@ struct SignInView: View {
         busy = false
       }
     } label: {
-      Text(title)
-        .font(Sans.semibold(14.5))
-        .frame(maxWidth: .infinity, minHeight: 46)
+      HStack(spacing: 10) {
+        ProviderMark(which: which)
+        Text(title).font(Sans.semibold(15))
+        Spacer(minLength: 0)
+      }
+      .padding(.horizontal, 16)
+      .frame(maxWidth: .infinity, minHeight: 50)
     }
-    .buttonStyle(.bordered)
-    .tint(.primary)
+    .buttonStyle(.plain)
+    .foregroundStyle(.primary)
+    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .overlay(
+      RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.separator, lineWidth: 0.5)
+    )
     .disabled(busy)
   }
 
@@ -274,5 +313,19 @@ struct SignInView: View {
       }
       busy = false
     }
+  }
+}
+
+/** A text field the way Codera draws one: tall, soft, and quiet until used. */
+struct Field: ViewModifier {
+  func body(content: Content) -> some View {
+    content
+      .font(Sans.regular(15.5))
+      .padding(.horizontal, 14)
+      .frame(height: 50)
+      .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .overlay(
+        RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.separator, lineWidth: 0.5)
+      )
   }
 }
