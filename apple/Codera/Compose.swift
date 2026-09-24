@@ -110,7 +110,7 @@ struct ComposeVideo: View {
           }
           if kind == "short" {
             Text("Shorts are tall videos, under a minute.")
-              .font(Sans.regular(13)).foregroundStyle(.secondary)
+              .font(Sans.regular(13)).foregroundStyle(Brand.muted)
           }
         }
 

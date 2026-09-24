@@ -14,8 +14,56 @@ enum Brand {
   static let sky = Color(red: 0.38, green: 0.65, blue: 0.98)     // #60a5fa
   static let red = Color(red: 0.94, green: 0.27, blue: 0.27)     // #ef4444
 
+  static let amber = Color(red: 0.96, green: 0.62, blue: 0.04)  // #f59e0b
+  static let onGreen = Color(red: 0.02, green: 0.08, blue: 0.04)  // #04140a
+
   /// Only the mark and the main button wear the gradient; everything else is flat.
   static let mark = LinearGradient(colors: [green, sky], startPoint: .topLeading, endPoint: .bottomTrailing)
+
+  // The surfaces, the same values as src/theme.js and web/styles.css. Without
+  // these every view falls through to Apple's own greys and Apple's blue, which
+  // is what made the app look like two products wearing one name.
+  static let bg = shifting(dark: 0x080C0A, light: 0xF5F7F6)
+  static let bg2 = shifting(dark: 0x0D1411, light: 0xFFFFFF)
+  static let bg3 = shifting(dark: 0x111A15, light: 0xEBEFEC)
+  static let text = shifting(dark: 0xE2E8E4, light: 0x0F1A14)
+  /// Darker in the light theme: the same grey on white fails contrast.
+  static let muted = shifting(dark: 0x6B7B6F, light: 0x56655B)
+  /// Behind a video, black in either appearance.
+  static let stage = Color.black
+
+  /// A hairline of the brand green rather than a grey rule.
+  static let line = shiftingAlpha(dark: (0x22C55E, 0.12), light: (0x166534, 0.14))
+
+  private static func shifting(dark: Int, light: Int) -> Color {
+#if canImport(UIKit)
+    Color(UIColor { $0.userInterfaceStyle == .dark ? hex(dark) : hex(light) })
+#else
+    Color(hex: light)
+#endif
+  }
+
+  private static func shiftingAlpha(dark: (Int, CGFloat), light: (Int, CGFloat)) -> Color {
+#if canImport(UIKit)
+    Color(UIColor {
+      let pick = $0.userInterfaceStyle == .dark ? dark : light
+      return hex(pick.0).withAlphaComponent(pick.1)
+    })
+#else
+    Color(hex: light.0).opacity(light.1)
+#endif
+  }
+
+#if canImport(UIKit)
+  private static func hex(_ value: Int) -> UIColor {
+    UIColor(
+      red: CGFloat((value >> 16) & 0xFF) / 255,
+      green: CGFloat((value >> 8) & 0xFF) / 255,
+      blue: CGFloat(value & 0xFF) / 255,
+      alpha: 1
+    )
+  }
+#endif
 }
 
 enum Sans {

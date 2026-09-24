@@ -231,7 +231,7 @@ struct CreateSheet: View {
         Image(icon).renderingMode(.template).foregroundStyle(Brand.blue).frame(width: 26)
         VStack(alignment: .leading, spacing: 2) {
           Text(title).font(Sans.bold(15)).foregroundStyle(.primary)
-          Text(detail).font(Sans.regular(13)).foregroundStyle(.secondary)
+          Text(detail).font(Sans.regular(13)).foregroundStyle(Brand.muted)
         }
       }
       .padding(.vertical, 4)

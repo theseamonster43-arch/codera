@@ -31,6 +31,12 @@ struct RootView: View {
       }
 #endif
     }
+    // Codera's own ground, accent and ink, rather than whatever iOS would pick.
+    // Set once here so every screen inherits it instead of each one remembering.
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .background(Brand.bg)
+    .tint(Brand.green)
+    .foregroundStyle(Brand.text)
   }
 }
 
@@ -44,7 +50,7 @@ struct HomeHeader: View {
       Image(systemName: "magnifyingglass")
         .font(.system(size: 17, weight: .semibold))
         .frame(width: 38, height: 38)
-        .background(.background.secondary, in: Circle())
+        .background(Brand.bg2, in: Circle())
     }
     .padding(.horizontal, 16)
     .padding(.bottom, 12)
@@ -100,18 +106,18 @@ struct PostCard: View {
         }
         .buttonStyle(.plain)
         Spacer(minLength: 6)
-        Text(ago(post.createdAt)).font(Sans.medium(12.5)).foregroundStyle(.secondary)
+        Text(ago(post.createdAt)).font(Sans.medium(12.5)).foregroundStyle(Brand.muted)
       }
 
       if !post.title.isEmpty {
         Text(post.title).font(Sans.bold(16))
       }
       if let body = post.body, !body.isEmpty {
-        Text(body).font(Sans.regular(14.5)).foregroundStyle(.secondary)
+        Text(body).font(Sans.regular(14.5)).foregroundStyle(Brand.muted)
       }
 
       if let image = post.imageUrl, let url = URL(string: image) {
-        AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Color.gray.opacity(0.15) }
+        AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Brand.bg3 }
           .frame(height: 180)
           .clipped()
           .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -130,7 +136,7 @@ struct PostCard: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 10))
+        .background(Brand.bg3, in: RoundedRectangle(cornerRadius: 10))
       }
 
       HStack(spacing: 16) {
@@ -139,12 +145,12 @@ struct PostCard: View {
         Label("\(post.commentCount)", systemImage: "bubble")
       }
       .font(Sans.semibold(13))
-      .foregroundStyle(.secondary)
+      .foregroundStyle(Brand.muted)
     }
     .padding(14)
     .frame(maxWidth: .infinity, alignment: .leading)
-    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 16))
-    .overlay(RoundedRectangle(cornerRadius: 16).stroke(.separator, lineWidth: 0.5))
+    .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16))
+    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
   }
 }
 
@@ -223,7 +229,7 @@ struct SignInView: View {
       Mark(size: 86)
       Text("Welcome to Codera").font(Sans.heavy(30))
       Text("Sign in to watch, post and run code from any tutorial.")
-        .font(Sans.regular(15)).foregroundStyle(.secondary).multilineTextAlignment(.center)
+        .font(Sans.regular(15)).foregroundStyle(Brand.muted).multilineTextAlignment(.center)
 
       TextField("Email", text: $email)
         .textContentType(.emailAddress)
@@ -246,15 +252,15 @@ struct SignInView: View {
         error = ""
       }
       .font(Sans.semibold(13.5))
-      .tint(Brand.blue)
+      .tint(Brand.green)
 
       // The other ways in. The sheet is Safari's, drawn over Codera and closing
       // itself when the provider is done — neither Google nor GitHub will sign
       // anyone in inside a view the app controls, and nor should they.
       HStack(spacing: 10) {
-        Rectangle().fill(.quaternary).frame(height: 1)
-        Text("or").font(Sans.medium(12)).foregroundStyle(.secondary)
-        Rectangle().fill(.quaternary).frame(height: 1)
+        Rectangle().fill(Brand.line).frame(height: 1)
+        Text("or").font(Sans.medium(12)).foregroundStyle(Brand.muted)
+        Rectangle().fill(Brand.line).frame(height: 1)
       }
       .padding(.vertical, 2)
 
@@ -291,9 +297,9 @@ struct SignInView: View {
     }
     .buttonStyle(.plain)
     .foregroundStyle(.primary)
-    .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     .overlay(
-      RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.separator, lineWidth: 0.5)
+      RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Brand.line, lineWidth: 1)
     )
     .disabled(busy)
   }
@@ -323,9 +329,9 @@ struct Field: ViewModifier {
       .font(Sans.regular(15.5))
       .padding(.horizontal, 14)
       .frame(height: 50)
-      .background(.background.secondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
       .overlay(
-        RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(.separator, lineWidth: 0.5)
+        RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Brand.line, lineWidth: 1)
       )
   }
 }

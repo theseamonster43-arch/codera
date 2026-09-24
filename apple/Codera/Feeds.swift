@@ -131,7 +131,7 @@ struct FollowingView: View {
 
           if store.followed.isEmpty {
             Text("When they post something, it shows up here.")
-              .font(Sans.regular(14)).foregroundStyle(.secondary)
+              .font(Sans.regular(14)).foregroundStyle(Brand.muted)
               .padding(.horizontal, 16)
           } else {
             LazyVGrid(columns: columns, spacing: 14) {

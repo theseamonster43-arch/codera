@@ -38,7 +38,7 @@ struct ProfileView: View {
             Text(name).font(Sans.heavy(24))
             Text("@\(name) · \(mine.count) \(mine.count == 1 ? "post" : "posts") · \(likes) \(likes == 1 ? "like" : "likes")")
               .font(Sans.medium(13))
-              .foregroundStyle(.secondary)
+              .foregroundStyle(Brand.muted)
           }
           .padding(.bottom, 6)
 
@@ -63,7 +63,7 @@ struct ProfileView: View {
 
         if shown.isEmpty {
           Text(mine.isEmpty ? "Nothing here yet." : "Nothing of that kind yet.")
-            .font(Sans.regular(14)).foregroundStyle(.secondary)
+            .font(Sans.regular(14)).foregroundStyle(Brand.muted)
             .padding(.horizontal, 18).padding(.top, 20)
         } else {
           LazyVGrid(columns: columns, spacing: 14) {
@@ -129,7 +129,7 @@ struct ProfileView: View {
       }
       .padding(.horizontal, 14)
       .frame(height: 34)
-      .background(filter == kind ? AnyShapeStyle(Color.primary) : AnyShapeStyle(.background.secondary), in: Capsule())
+      .background(filter == kind ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Brand.bg2), in: Capsule())
       .foregroundStyle(filter == kind ? AnyShapeStyle(Color(uiColor: .systemBackground)) : AnyShapeStyle(Color.primary))
       .overlay(Capsule().stroke(.separator, lineWidth: filter == kind ? 0 : 0.5))
     }
@@ -152,7 +152,7 @@ struct FollowButton: View {
         .font(Sans.bold(14))
         .padding(.horizontal, 20)
         .frame(height: 38)
-        .background(following ? AnyShapeStyle(.background.secondary) : AnyShapeStyle(Brand.mark), in: Capsule())
+        .background(following ? AnyShapeStyle(Brand.bg2) : AnyShapeStyle(Brand.mark), in: Capsule())
         .foregroundStyle(following ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color.white))
         .overlay(Capsule().stroke(.separator, lineWidth: following ? 0.5 : 0))
     }
