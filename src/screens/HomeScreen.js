@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme, F } from '../theme';
 import useTabSpace from '../tabSpace';
 import useWindowControls from '../windowControls';
-import { Code, Search, Live } from '../Icons';
+import { Code, Search, Live, Shorts } from '../Icons';
 import IconButton from '../IconButton';
 import Mark from '../Mark';
 import Empty from '../Empty';
@@ -17,6 +17,7 @@ import useLayout from '../layout';
 import SponsoredCard from '../SponsoredCard';
 import { takeHomeAd, onHomeAdReady, markAdShown } from '../ads';
 import LiveCard from '../LiveCard';
+import ShortCard from '../ShortCard';
 import { useStreams, useTaste, useFollowing, onAir } from '../social';
 import { rank } from '../taste';
 
@@ -40,6 +41,12 @@ export default function HomeScreen({ navigation }) {
   const following = useFollowing();
   const feed = useMemo(
     () => rank(posts.filter(p => p.type !== 'short'), taste, following),
+    [posts, taste, following],
+  );
+  // Shorts are kept out of the column and put on a shelf of their own: a tall
+  // card in a column of wide ones is a screenful of one short.
+  const shorts = useMemo(
+    () => rank(posts.filter(p => p.type === 'short'), taste, following).slice(0, 12),
     [posts, taste, following],
   );
   // At most one sponsored card, after the first video, when the ad rules allow.
@@ -97,6 +104,17 @@ export default function HomeScreen({ navigation }) {
           </ScrollView>
         </>
       )}
+      {shorts.length > 0 && (
+        <>
+          <View style={s.subRow}>
+            <Shorts color={T.text} size={18} />
+            <Text style={s.sub}>Shorts</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.shelf}>
+            {shorts.map(sh => <ShortCard key={sh.id} post={sh} />)}
+          </ScrollView>
+        </>
+      )}
     </View>
   );
 
@@ -147,5 +165,5 @@ const styles = T => StyleSheet.create({
   sub: { color: T.text, fontSize: 17, fontFamily: F['800'] },
   more: { color: T.muted, fontSize: 13, fontFamily: F['700'], marginLeft: 6 },
   because: { flex: 1, color: T.muted, fontSize: 12.5, fontFamily: F['600'], marginLeft: 4 },
-  shelf: { paddingHorizontal: 14, paddingBottom: 14 },
+  shelf: { paddingHorizontal: 14, paddingBottom: 14, gap: 12 },
 });

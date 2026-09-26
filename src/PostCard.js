@@ -5,12 +5,15 @@ import {
 import Video from 'react-native-video';
 
 import { useTheme, F, clock } from './theme';
-import { ago, deletePost } from './data';
+import { ago, deletePost, picsOf } from './data';
 import { auth } from './firebase';
 import { useNavigation } from '@react-navigation/native';
 
 import { Play, Person } from './Icons';
 import PostActions from './PostActions';
+import Gallery from './Gallery';
+import VideoCard from './VideoCard';
+import CommentsSheet from './CommentsSheet';
 import { beforeVideo } from './ads';
 import { nudgePost, WEIGHT } from './social';
 
@@ -29,6 +32,8 @@ export default function PostCard({ post }) {
   // Where the ••• sits on screen, so the menu opens right under it.
   const [menu, setMenu] = useState(null);
   const dots = useRef(null);
+
+  const [talking, setTalking] = useState(false);
 
   const mine = auth.currentUser?.uid === post.uid;
   const isShort = post.type === 'short';
@@ -60,6 +65,10 @@ export default function PostCard({ post }) {
     deletePost(post).catch(() => {});
   }
 
+  // A video is not a post with a video in it: the picture leads and the words
+  // go under it, the shape a video has on the website and in the Apple app.
+  if (hasVideo) return <VideoCard post={post} />;
+
   return (
     <View style={s.card}>
       <View style={s.head}>
@@ -90,9 +99,9 @@ export default function PostCard({ post }) {
       )}
       {!!post.body && <Text style={s.body}>{post.body}</Text>}
 
-      {!!post.imageUrl && (
-        <Image source={{ uri: post.imageUrl }} style={s.picture} resizeMode="cover" />
-      )}
+      {/* Every picture the post carries, swiped through when there is more
+          than one, and any of them opens full screen. */}
+      <Gallery urls={picsOf(post)} />
 
       {hasVideo && (
         <Pressable style={[s.video, isShort && s.short]} onPress={play}
@@ -128,12 +137,11 @@ export default function PostCard({ post }) {
         </View>
       )}
 
-      <PostActions
-        post={post}
-        onComment={() => nav.navigate('Comments', {
-          postId: post.id, postTitle: post.title, postUid: post.uid,
-        })}
-      />
+      <PostActions post={post} onComment={() => setTalking(true)} />
+
+      {/* Over the feed rather than instead of it: reading a line no longer
+          costs you your place. */}
+      {talking && <CommentsSheet post={post} onClose={() => setTalking(false)} />}
 
       {/* The ••• menu. A tap anywhere else closes it, having done nothing. */}
       <Modal transparent visible={!!menu} animationType="fade"

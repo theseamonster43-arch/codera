@@ -17,9 +17,10 @@ import usePosts from '../usePosts';
 import { usePlus } from '../plus';
 import { RULES, takeSponsored, markAdShown, onSponsoredReady } from '../ads';
 import SponsoredShort from '../SponsoredShort';
+import CommentsSheet from '../CommentsSheet';
 
 /** Full-screen vertical shorts, one per swipe. */
-export default function ShortsScreen({ navigation }) {
+export default function ShortsScreen({ navigation, route }) {
   const T = useTheme();
   const insets = useSafeAreaInsets();
   const { height, width } = useWindowDimensions();
@@ -58,6 +59,22 @@ export default function ShortsScreen({ navigation }) {
 
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  // Over the short rather than instead of it: leaving for a page of comments
+  // meant coming back to the top of the feed.
+  const [talking, setTalking] = useState(null);
+  const list = useRef(null);
+
+  // Opened from somewhere else — the shelf on the feed, a profile — asking for
+  // one short in particular. The list is jumped to it once it holds it.
+  const wanted = route?.params?.id;
+  useEffect(() => {
+    if (!wanted) return;
+    const at = items.findIndex(it => !it.ad && it.id === wanted);
+    if (at < 0) return;
+    list.current?.scrollToIndex({ index: at, animated: false });
+    setActive(at);
+    navigation.setParams({ id: undefined });
+  }, [wanted, items, navigation]);
 
   // Shorts watched since the last sponsored page, and whether one is already
   // waiting further down.
@@ -144,9 +161,7 @@ export default function ShortsScreen({ navigation }) {
           <PostActions
             post={item}
             tone="video"
-            onComment={() => navigation.navigate('Comments', {
-              postId: item.id, postTitle: item.title, postUid: item.uid,
-            })}
+            onComment={() => setTalking(item)}
           />
         </View>
 
@@ -188,6 +203,7 @@ export default function ShortsScreen({ navigation }) {
         <ActivityIndicator color="#fff" style={{ marginTop: 80 }} />
       ) : (
         <FlatList
+          ref={list}
           data={items}
           keyExtractor={p => p.key || p.id}
           renderItem={render}
@@ -202,6 +218,8 @@ export default function ShortsScreen({ navigation }) {
           windowSize={3}
         />
       )}
+
+      {talking && <CommentsSheet post={talking} onClose={() => setTalking(null)} />}
     </View>
   );
 }

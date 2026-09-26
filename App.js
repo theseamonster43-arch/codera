@@ -27,6 +27,7 @@ import ComposePostScreen from './src/screens/ComposePostScreen';
 import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
 import PlusScreen from './src/screens/PlusScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
+import WatchScreen from './src/screens/WatchScreen';
 import LiveViewScreen from './src/screens/LiveViewScreen';
 import UserScreen from './src/screens/UserScreen';
 import { SheetHost } from './src/Sheet';
@@ -209,6 +210,7 @@ export default function App() {
                     name="Checkout"
                     getComponent={() => require('./src/screens/CheckoutScreen').default}
                   />
+                  <Stack.Screen name="Watch" component={WatchScreen} />
                   <Stack.Screen name="Comments" component={CommentsScreen} />
                   {/* Going live, or watching: no swipe to dismiss, which would end a stream by accident. */}
                   <Stack.Screen name="LiveView" component={LiveViewScreen} options={{ gestureEnabled: false }} />

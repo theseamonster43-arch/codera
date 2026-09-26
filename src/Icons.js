@@ -66,6 +66,34 @@ export const Play = ({ color, size = 24 }) => (
   <S size={size}><Path d="M8 5v14l11-7z" fill={color} /></S>
 );
 
+export const Send = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Path d="M12 19.2V5.2M5.6 11.6 12 5.2l6.4 6.4" {...stroke(color, 2.1)} />
+  </S>
+);
+
+/** The player's own three, on the same paths the web player uses. */
+export const Pause = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Rect x="6.6" y="5" width="3.9" height="14" rx="1.3" fill={color} />
+    <Rect x="13.5" y="5" width="3.9" height="14" rx="1.3" fill={color} />
+  </S>
+);
+
+export const Full = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Path d="M9.2 3.6H4.8a1.2 1.2 0 0 0-1.2 1.2v4.4M14.8 3.6h4.4a1.2 1.2 0 0 1 1.2 1.2v4.4M9.2 20.4H4.8a1.2 1.2 0 0 1-1.2-1.2v-4.4M14.8 20.4h4.4a1.2 1.2 0 0 0 1.2-1.2v-4.4"
+          {...stroke(color)} strokeWidth={1.9} />
+  </S>
+);
+
+export const Exit = ({ color, size = 24 }) => (
+  <S size={size}>
+    <Path d="M3.6 9.2H8a1.2 1.2 0 0 0 1.2-1.2V3.6M20.4 9.2H16a1.2 1.2 0 0 1-1.2-1.2V3.6M3.6 14.8H8a1.2 1.2 0 0 1 1.2 1.2v4.4M20.4 14.8H16a1.2 1.2 0 0 0-1.2 1.2v4.4"
+          {...stroke(color)} strokeWidth={1.9} />
+  </S>
+);
+
 export const Heart = ({ color, size = 24, filled }) => (
   <S size={size}>
     <Path d="M12 20.3 4.7 13a4.6 4.6 0 0 1 6.5-6.5l.8.8.8-.8A4.6 4.6 0 0 1 19.3 13z"

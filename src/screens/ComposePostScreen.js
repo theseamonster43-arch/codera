@@ -7,8 +7,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { launchImageLibrary } from 'react-native-image-picker';
 
 import { useTheme, F } from '../theme';
-import { createPost } from '../data';
+import { createPost, MAX_PICS } from '../data';
 import ButtonFill from '../ButtonFill';
+import { Close } from '../Icons';
 import useWindowControls from '../windowControls';
 
 const LANGS = ['JavaScript', 'Python', 'TypeScript', 'Java', 'C++', 'Go', 'Rust', 'Other'];
@@ -23,16 +24,23 @@ export default function ComposePostScreen({ navigation }) {
   const [body, setBody] = useState('');
   const [code, setCode] = useState('');
   const [lang, setLang] = useState(null);
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const canPost = title.trim().length > 0 && (body.trim() || code.trim());
 
   async function pickImage() {
-    const res = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1, quality: 0.9 });
-    const a = res?.assets?.[0];
-    if (a?.uri) setImage({ uri: a.uri, mime: a.type || 'image/jpeg' });
+    // Picked in more than one go: three and then two makes five.
+    const room = MAX_PICS - images.length;
+    if (room <= 0) return;
+    const res = await launchImageLibrary({
+      mediaType: 'photo', selectionLimit: room, quality: 0.9,
+    });
+    const picked = (res?.assets || [])
+      .filter(a => a?.uri)
+      .map(a => ({ uri: a.uri, mime: a.type || 'image/jpeg' }));
+    if (picked.length) setImages(was => [...was, ...picked].slice(0, MAX_PICS));
   }
 
   async function post() {
@@ -40,7 +48,7 @@ export default function ComposePostScreen({ navigation }) {
     setErr('');
     setBusy(true);
     try {
-      await createPost({ title, body, code, lang: code.trim() ? lang : null, image });
+      await createPost({ title, body, code, lang: code.trim() ? lang : null, images });
       navigation.goBack();
     } catch (e) {
       setErr(e?.code === 'permission-denied'
@@ -80,17 +88,35 @@ export default function ComposePostScreen({ navigation }) {
             placeholderTextColor={T.muted} multiline maxLength={4000}
           />
 
-          <Text style={s.label}>Picture</Text>
-          {image ? (
+          <Text style={s.label}>{images.length > 1 ? 'Pictures' : 'Picture'}</Text>
+          {images.length > 0 ? (
             <View>
-              <Image source={{ uri: image.uri }} style={s.pic} resizeMode="cover" />
-              <Pressable onPress={() => setImage(null)} style={s.picX} hitSlop={8}>
-                <Text style={s.picXTxt}>Remove picture</Text>
-              </Pressable>
+              {/* Each with a cross on it, because the way to drop the third of
+                  four is to press the third of four. */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                          contentContainerStyle={s.picked}>
+                {images.map((pic, i) => (
+                  <View key={pic.uri + i}>
+                    <Image source={{ uri: pic.uri }} style={s.thumb} resizeMode="cover" />
+                    <Pressable
+                      style={s.drop} hitSlop={8}
+                      onPress={() => setImages(was => was.filter((_, n) => n !== i))}
+                      accessibilityRole="button" accessibilityLabel="Remove picture"
+                    >
+                      <Close color={T.text} size={13} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+              {images.length < MAX_PICS && (
+                <Pressable onPress={pickImage} style={s.picX} hitSlop={8}>
+                  <Text style={s.picXTxt}>Add more</Text>
+                </Pressable>
+              )}
             </View>
           ) : (
             <Pressable onPress={pickImage} style={s.add}>
-              <Text style={s.addTxt}>Add a picture</Text>
+              <Text style={s.addTxt}>Add pictures</Text>
             </Pressable>
           )}
 
@@ -158,6 +184,13 @@ const styles = T => StyleSheet.create({
   },
   addTxt: { color: T.blue, fontSize: 14, fontFamily: F['700'] },
   pic: { height: 200, borderRadius: 12, backgroundColor: T.bg3 },
+  picked: { gap: 10, paddingRight: 4, paddingTop: 4 },
+  thumb: { width: 92, height: 92, borderRadius: 12, backgroundColor: T.bg3 },
+  drop: {
+    position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.bg3, borderWidth: 1, borderColor: T.border,
+  },
   picX: { alignSelf: 'center', marginTop: 8, paddingVertical: 4, paddingHorizontal: 10 },
   picXTxt: { color: T.red, fontSize: 13, fontFamily: F['700'] },
   langs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },

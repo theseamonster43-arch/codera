@@ -26,12 +26,19 @@ function author() {
   };
 }
 
-/** A text post with an optional code snippet. */
-export async function createPost({ title, body, code, lang, image }) {
+/** How many pictures one post can carry. The rules allow the same. */
+export const MAX_PICS = 10;
+
+/** A text post with an optional code snippet, and up to ten pictures. */
+export async function createPost({ title, body, code, lang, images }) {
   const who = author();
-  // The picture goes up first: a post is never written pointing at a file
+  // The pictures go up first: a post is never written pointing at a file
   // that failed to upload.
-  const picture = image ? await uploadImage({ ...image, uid: who.uid }) : null;
+  const chosen = (images || []).slice(0, MAX_PICS);
+  const put = [];
+  for (let i = 0; i < chosen.length; i++) {
+    put.push(await uploadImage({ ...chosen[i], uid: who.uid, n: i }));
+  }
 
   return addDoc(collection(db, POSTS), {
     ...who,
@@ -40,8 +47,12 @@ export async function createPost({ title, body, code, lang, image }) {
     body: (body || '').trim(),
     code: (code || '').replace(/\s+$/, ''),
     lang: lang || null,
-    imageUrl: picture ? picture.imageUrl : null,
-    imagePath: picture ? picture.imagePath : null,
+    // The first is written on its own as well, so an app that predates the
+    // list shows a picture rather than nothing.
+    imageUrl: put.length ? put[0].imageUrl : null,
+    imagePath: put.length ? put[0].imagePath : null,
+    imageUrls: put.length > 1 ? put.map(p => p.imageUrl) : null,
+    imagePaths: put.length > 1 ? put.map(p => p.imagePath) : null,
     likeCount: 0,
     dislikeCount: 0,
     commentCount: 0,
@@ -49,10 +60,25 @@ export async function createPost({ title, body, code, lang, image }) {
   });
 }
 
+/**
+ * The pictures on a post.
+ *
+ * Posts written before a post could carry several have the one, in imageUrl.
+ */
+export function picsOf(p) {
+  if (Array.isArray(p.imageUrls) && p.imageUrls.length) return p.imageUrls;
+  return p.imageUrl ? [p.imageUrl] : [];
+}
+
+export function picPathsOf(p) {
+  if (Array.isArray(p.imagePaths) && p.imagePaths.length) return p.imagePaths;
+  return p.imagePath ? [p.imagePath] : [];
+}
+
 /** Puts one picture in Storage, under the poster's own folder. */
-async function uploadImage({ uri, mime, uid }) {
+async function uploadImage({ uri, mime, uid, n = 0 }) {
   const ext = (mime && mime.split('/')[1]) || 'jpg';
-  const imagePath = 'images/' + uid + '/' + Date.now() + '.' + ext;
+  const imagePath = 'images/' + uid + '/' + Date.now() + '-' + n + '.' + ext;
   const blob = await readFile(uri);
   try {
     await uploadBytesResumable(ref(storage, imagePath), blob, {
@@ -151,8 +177,8 @@ export async function deletePost(post) {
     // The file may already be gone; that must not stop the post being removed.
     try { await deleteObject(ref(storage, post.videoPath)); } catch (e) {}
   }
-  if (post.imagePath) {
-    try { await deleteObject(ref(storage, post.imagePath)); } catch (e) {}
+  for (const path of picPathsOf(post)) {
+    try { await deleteObject(ref(storage, path)); } catch (e) {}
   }
   await deleteDoc(doc(db, POSTS, post.id));
 }
