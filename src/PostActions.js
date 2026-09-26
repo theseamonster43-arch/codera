@@ -49,11 +49,20 @@ export default function PostActions({ post, onComment, tone = 'card' }) {
         <Text style={[s.n, mine === -1 && s.off]}>{post.dislikeCount || 0}</Text>
       </Pressable>
 
-      <Pressable onPress={onComment} style={s.btn} hitSlop={8}
-                 accessibilityRole="button" accessibilityLabel="Comments">
-        <Comment color={plain} size={size} />
-        <Text style={s.n}>{post.commentCount || 0}</Text>
-      </Pressable>
+      {/* Where the thread is already on the page — a watch page — the count
+          is a count and not a button that would lead nowhere. */}
+      {onComment ? (
+        <Pressable onPress={onComment} style={s.btn} hitSlop={8}
+                   accessibilityRole="button" accessibilityLabel="Comments">
+          <Comment color={plain} size={size} />
+          <Text style={s.n}>{post.commentCount || 0}</Text>
+        </Pressable>
+      ) : (
+        <View style={s.btn}>
+          <Comment color={plain} size={size} />
+          <Text style={s.n}>{post.commentCount || 0}</Text>
+        </View>
+      )}
     </View>
   );
 }

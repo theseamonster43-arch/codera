@@ -12,7 +12,7 @@ import { auth } from '../firebase';
 import { Person, Chevron } from '../Icons';
 import Player from '../Player';
 import PostActions from '../PostActions';
-import CommentsSheet from '../CommentsSheet';
+import CommentThread from '../CommentThread';
 import { useFollowing, toggleFollow } from '../social';
 
 /**
@@ -31,7 +31,6 @@ export default function WatchScreen({ route, navigation }) {
   const wc = useWindowControls();
 
   const { width, height } = useWindowDimensions();
-  const [talking, setTalking] = useState(false);
   const [full, setFull] = useState(false);
   const following = useFollowing();
   const mine = auth.currentUser?.uid === post.uid;
@@ -43,7 +42,8 @@ export default function WatchScreen({ route, navigation }) {
       <View style={[s.top, { paddingTop: insets.top + 8, paddingLeft: 10 + wc }]}>
         <Pressable onPress={() => navigation.goBack()} hitSlop={10} style={s.back}
                    accessibilityRole="button" accessibilityLabel="Back">
-          <Chevron color={T.text} size={20} />
+          {/* Chevron points the way a list opens; back is the other way. */}
+          <View style={s.flip}><Chevron color={T.text} size={20} /></View>
         </Pressable>
       </View>
 
@@ -81,12 +81,16 @@ export default function WatchScreen({ route, navigation }) {
           )}
         </View>
 
-        <PostActions post={post} onComment={() => setTalking(true)} />
+        <PostActions post={post} />
 
         {!!post.description && <Text style={s.desc}>{post.description}</Text>}
-      </ScrollView>
 
-      {talking && <CommentsSheet post={post} onClose={() => setTalking(false)} />}
+        {/* On the page, under the video. A video is watched on a page of its
+            own, so there is room for the thread; a post in a feed has none,
+            and raises the same thread over itself instead. */}
+        <View style={s.line} />
+        <CommentThread post={post} />
+      </ScrollView>
 
       {/* Full screen, turned on its side.
           Android will not rotate the window without a native orientation
@@ -113,6 +117,7 @@ const styles = T => StyleSheet.create({
   fill: { flex: 1, backgroundColor: T.bg },
   top: { paddingBottom: 8, backgroundColor: '#000' },
   back: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  flip: { transform: [{ rotate: '180deg' }] },
   stage: { width: '100%', aspectRatio: 16 / 9 },
   body: { padding: 16, gap: 14 },
   title: { color: T.text, fontSize: 18.5, fontFamily: F['800'], lineHeight: 25 },
@@ -134,6 +139,7 @@ const styles = T => StyleSheet.create({
   followTxtOn: { color: T.text },
   dark: { flex: 1, backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' },
   turned: { transform: [{ rotate: '90deg' }] },
+  line: { height: 1, backgroundColor: T.border, marginTop: 4 },
   desc: {
     color: T.muted, fontSize: 14.5, fontFamily: F['400'], lineHeight: 21,
     backgroundColor: T.bg2, borderRadius: 14, borderWidth: 1, borderColor: T.border,
