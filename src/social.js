@@ -179,6 +179,73 @@ export async function resolveUser(arg) {
   return String(arg).trim();
 }
 
+/**
+ * Whose face and name to show for an account, now rather than then.
+ *
+ * A post keeps the name and picture of whoever wrote it, copied in when it was
+ * written — which is what lets a feed be read without looking up an account per
+ * card. The cost is that anything posted before a picture was set carries no
+ * picture for ever, and changing your picture leaves every old post wearing the
+ * old one.
+ *
+ * So each account is watched once, however many cards it appears on, and the
+ * profile is preferred over the copy. The watch is dropped when the last card
+ * showing that person goes away.
+ */
+const known = new Map();      // uid -> { username, photoUrl }
+const watching = new Map();   // uid -> { stop, held }
+const told = new Set();       // what to nudge when something changes
+
+function announce() { told.forEach(fn => fn()); }
+
+function hold(uid) {
+  const it = watching.get(uid);
+  if (it) { it.held += 1; return; }
+  const stop = onSnapshot(
+    doc(db, 'profiles', uid),
+    snap => {
+      known.set(uid, snap.exists()
+        ? { username: snap.get('username'), photoUrl: snap.get('photoUrl') }
+        : {});
+      announce();
+    },
+    // A momentary error is no reason to blank a face that is perfectly fine.
+    () => {},
+  );
+  watching.set(uid, { stop, held: 1 });
+}
+
+function release(uid) {
+  const it = watching.get(uid);
+  if (!it) return;
+  it.held -= 1;
+  if (it.held > 0) return;
+  it.stop();
+  watching.delete(uid);
+}
+
+/**
+ * The name and picture for one account, falling back to whatever the post
+ * itself carries until the profile has been read.
+ */
+export function useFace(uid, fallback) {
+  const [, bump] = useState(0);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+    hold(uid);
+    const nudge = () => bump(n => n + 1);
+    told.add(nudge);
+    return () => { told.delete(nudge); release(uid); };
+  }, [uid]);
+
+  const face = (uid && known.get(uid)) || {};
+  return {
+    name: face.username || fallback?.authorName || 'someone',
+    photo: face.photoUrl || fallback?.authorPhoto || null,
+  };
+}
+
 /** Names and pictures for a handful of accounts, read once each. */
 const faceCache = new Map();
 export function useFaces(uids) {

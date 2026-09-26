@@ -13,7 +13,7 @@ import { Person, Chevron } from '../Icons';
 import Player from '../Player';
 import PostActions from '../PostActions';
 import CommentThread from '../CommentThread';
-import { useFollowing, toggleFollow } from '../social';
+import { useFollowing, toggleFollow, useFace } from '../social';
 
 /**
  * Watching one video.
@@ -33,6 +33,7 @@ export default function WatchScreen({ route, navigation }) {
   const { width, height } = useWindowDimensions();
   const [full, setFull] = useState(false);
   const following = useFollowing();
+  const face = useFace(post.uid, post);
   const mine = auth.currentUser?.uid === post.uid;
 
   return (
@@ -57,12 +58,12 @@ export default function WatchScreen({ route, navigation }) {
                      onPress={() => navigation.navigate('User', { uid: post.uid })}
                      accessibilityRole="link" accessibilityLabel={post.authorName + '’s page'}>
             <View style={s.avatar}>
-              {post.authorPhoto
-                ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
+              {face.photo
+                ? <Image source={{ uri: face.photo }} style={s.photo} />
                 : <Person color={T.muted} size={17} />}
             </View>
             <View>
-              <Text style={s.name} numberOfLines={1}>{post.authorName}</Text>
+              <Text style={s.name} numberOfLines={1}>{face.name}</Text>
               <Text style={s.when}>
                 {compact(post.likeCount || 0)} {(post.likeCount || 0) === 1 ? 'like' : 'likes'} · {ago(post.createdAt)}
               </Text>

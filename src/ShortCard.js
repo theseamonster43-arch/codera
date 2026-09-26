@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme, F, compact } from './theme';
 import { ago } from './data';
 import { Person } from './Icons';
+import { useFace } from './social';
 
 /** How wide one card on the shelf is. Narrow enough that the next one shows. */
 export const SHELF_W = 150;
@@ -22,6 +23,7 @@ export default function ShortCard({ post }) {
   const s = useMemo(() => styles(T), [T]);
   const nav = useNavigation();
   const [still, setStill] = useState(false);
+  const face = useFace(post.uid, post);
 
   return (
     <Pressable
@@ -50,13 +52,13 @@ export default function ShortCard({ post }) {
 
       <View style={s.body}>
         <View style={s.avatar}>
-          {post.authorPhoto
-            ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
+          {face.photo
+            ? <Image source={{ uri: face.photo }} style={s.photo} />
             : <Person color={T.muted} size={13} />}
         </View>
         <View style={s.words}>
           <Text style={s.title} numberOfLines={2}>{post.title}</Text>
-          <Text style={s.who} numberOfLines={1}>{post.authorName}</Text>
+          <Text style={s.who} numberOfLines={1}>{face.name}</Text>
           <Text style={s.who} numberOfLines={1}>
             {compact(post.likeCount || 0)} {(post.likeCount || 0) === 1 ? 'like' : 'likes'} · {ago(post.createdAt)}
           </Text>

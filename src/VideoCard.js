@@ -12,7 +12,7 @@ import { Play, Person } from './Icons';
 import CommentsSheet from './CommentsSheet';
 import PostActions from './PostActions';
 import { beforeVideo } from './ads';
-import { nudgePost, WEIGHT } from './social';
+import { nudgePost, WEIGHT, useFace } from './social';
 
 /** What the ••• menu calls the thing you are about to delete. */
 const KIND = { video: 'video', live: 'stream' };
@@ -33,6 +33,7 @@ export default function VideoCard({ post }) {
   const [starting, setStarting] = useState(false);
   const [menu, setMenu] = useState(null);
   const [talking, setTalking] = useState(false);
+  const face = useFace(post.uid, post);
   const dots = useRef(null);
   const [still, setStill] = useState(false);
 
@@ -92,14 +93,14 @@ export default function VideoCard({ post }) {
         <Pressable style={s.avatar} hitSlop={6}
                    onPress={() => nav.navigate('User', { uid: post.uid })}
                    accessibilityRole="link" accessibilityLabel={post.authorName + '’s page'}>
-          {post.authorPhoto
-            ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
+          {face.photo
+            ? <Image source={{ uri: face.photo }} style={s.photo} />
             : <Person color={T.muted} size={16} />}
         </Pressable>
 
         <View style={s.words}>
           <Text style={s.title} numberOfLines={2}>{post.title}</Text>
-          <Text style={s.who} numberOfLines={1}>{post.authorName}</Text>
+          <Text style={s.who} numberOfLines={1}>{face.name}</Text>
           <Text style={s.who} numberOfLines={1}>
             {compact(post.likeCount || 0)} {(post.likeCount || 0) === 1 ? 'like' : 'likes'} · {ago(post.createdAt)}
           </Text>

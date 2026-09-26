@@ -9,6 +9,39 @@ import { ago, subscribeComments, addComment, deleteComment } from './data';
 import { contactProblem } from './safety';
 import { Person, Close, Send } from './Icons';
 import Gradient, { BRAND } from './Gradient';
+import { useFace } from './social';
+
+/**
+ * One comment.
+ *
+ * A component of its own because the face is looked up per person, and a hook
+ * cannot be called from inside a loop.
+ */
+function Said({ comment, canDelete, onDelete, T, s }) {
+  const face = useFace(comment.uid, comment);
+  return (
+    <View style={s.row}>
+      <View style={s.avatar}>
+        {face.photo
+          ? <Image source={{ uri: face.photo }} style={s.photo} />
+          : <Person color={T.muted} size={15} />}
+      </View>
+      <View style={s.said}>
+        <View style={s.byline}>
+          <Text style={s.who} numberOfLines={1}>{face.name}</Text>
+          <Text style={s.when}>{ago(comment.createdAt)}</Text>
+        </View>
+        <Text style={s.text} selectable>{comment.text}</Text>
+      </View>
+      {canDelete && (
+        <Pressable hitSlop={8} onPress={onDelete}
+                   accessibilityRole="button" accessibilityLabel="Delete comment">
+          <Close color={T.muted} size={14} />
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
 /**
  * What people said about a post: the thread and the box to add to it.
@@ -74,33 +107,17 @@ export default function CommentThread({ post, heading = true }) {
         </View>
       ) : (
         <View style={s.rows}>
-          {comments.map(item => {
-            // Your own comment, or anyone's comment on your own post.
-            const canDelete = item.uid === me || postUid === me;
-            return (
-              <View key={item.id} style={s.row}>
-                <View style={s.avatar}>
-                  {item.authorPhoto
-                    ? <Image source={{ uri: item.authorPhoto }} style={s.photo} />
-                    : <Person color={T.muted} size={15} />}
-                </View>
-                <View style={s.said}>
-                  <View style={s.byline}>
-                    <Text style={s.who} numberOfLines={1}>{item.authorName}</Text>
-                    <Text style={s.when}>{ago(item.createdAt)}</Text>
-                  </View>
-                  <Text style={s.text} selectable>{item.text}</Text>
-                </View>
-                {canDelete && (
-                  <Pressable hitSlop={8}
-                             onPress={() => deleteComment(postId, item.id).catch(() => {})}
-                             accessibilityRole="button" accessibilityLabel="Delete comment">
-                    <Close color={T.muted} size={14} />
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
+          {comments.map(item => (
+            <Said
+              key={item.id}
+              comment={item}
+              // Your own comment, or anyone's comment on your own post.
+              canDelete={item.uid === me || postUid === me}
+              onDelete={() => deleteComment(postId, item.id).catch(() => {})}
+              T={T}
+              s={s}
+            />
+          ))}
         </View>
       )}
 

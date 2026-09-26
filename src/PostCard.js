@@ -15,7 +15,7 @@ import Gallery from './Gallery';
 import VideoCard from './VideoCard';
 import CommentsSheet from './CommentsSheet';
 import { beforeVideo } from './ads';
-import { nudgePost, WEIGHT } from './social';
+import { nudgePost, WEIGHT, useFace } from './social';
 
 /** What the ••• menu calls the thing you are about to delete. */
 const KIND = { post: 'post', short: 'short', video: 'video', live: 'stream' };
@@ -34,6 +34,8 @@ export default function PostCard({ post }) {
   const dots = useRef(null);
 
   const [talking, setTalking] = useState(false);
+  // Whose it is now, not whose it was when it was written.
+  const face = useFace(post.uid, post);
 
   const mine = auth.currentUser?.uid === post.uid;
   const isShort = post.type === 'short';
@@ -76,11 +78,11 @@ export default function PostCard({ post }) {
         <Pressable style={s.by} hitSlop={6} onPress={() => nav.navigate('User', { uid: post.uid })}
                    accessibilityRole="link" accessibilityLabel={post.authorName + '’s page'}>
           <View style={s.avatar}>
-            {post.authorPhoto
-              ? <Image source={{ uri: post.authorPhoto }} style={s.photo} />
+            {face.photo
+              ? <Image source={{ uri: face.photo }} style={s.photo} />
               : <Person color={T.muted} size={16} />}
           </View>
-          <Text style={s.author} numberOfLines={1}>{post.authorName}</Text>
+          <Text style={s.author} numberOfLines={1}>{face.name}</Text>
         </Pressable>
         <Text style={s.time}>{ago(post.createdAt)}</Text>
         {mine && (
