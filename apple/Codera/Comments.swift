@@ -199,8 +199,8 @@ struct CommentSheet: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 14)
     }
-    .background(Brand.bg)
+    .background(Brand.ground)
     .presentationDetents([.medium, .large])
-    .presentationBackground(Brand.bg)
+    .presentationBackground(Brand.ground)
   }
 }

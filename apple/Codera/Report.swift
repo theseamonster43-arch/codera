@@ -120,9 +120,9 @@ struct ReportSheet: View {
         .padding(16)
       }
     }
-    .background(Brand.bg)
+    .background(Brand.ground)
     .presentationDetents([.medium, .large])
-    .presentationBackground(Brand.bg)
+    .presentationBackground(Brand.ground)
   }
 
   private func send(_ reason: Reason) {

@@ -34,7 +34,7 @@ struct RootView: View {
     // Codera's own ground, accent and ink, rather than whatever iOS would pick.
     // Set once here so every screen inherits it instead of each one remembering.
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(Brand.bg)
+    .background(Brand.ground)
     .tint(Brand.blue)
     .foregroundStyle(Brand.text)
   }

@@ -97,7 +97,7 @@ struct WatchPage: View {
       .frame(maxWidth: Brand.readable)
       .frame(maxWidth: .infinity)
     }
-    .background(Brand.bg)
+    .background(Brand.ground)
     .navigationTitle("")
 #if !os(visionOS)
     .navigationBarTitleDisplayMode(.inline)

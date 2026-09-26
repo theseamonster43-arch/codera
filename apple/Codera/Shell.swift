@@ -52,13 +52,13 @@ struct Shell: View {
   var body: some View {
     TabView(selection: $tab) {
       Tab(value: 0) {
-        HomeView()
+        HomeView().modifier(Corners())
       } label: {
         label("Home", "home", filled: tab == 0)
       }
 
       Tab(value: 1) {
-        ShortsView()
+        ShortsView().modifier(Corners())
       } label: {
         label("Shorts", "shorts", filled: tab == 1)
       }
@@ -78,13 +78,13 @@ struct Shell: View {
       }
 
       Tab(value: 3) {
-        FollowingView()
+        FollowingView().modifier(Corners())
       } label: {
         label("Following", "followed", filled: tab == 3)
       }
 
       Tab(value: 4) {
-        YouView()
+        YouView().modifier(Corners())
       } label: {
         label("You", "you", filled: tab == 4)
       }
@@ -120,14 +120,7 @@ struct Shell: View {
     }
     // Curved screens and windows — a Vision Pro's, an unfolded phone's — cut the
     // corners off anything that runs to the edge, so the content keeps clear of them.
-#if os(visionOS)
-    // A Vision Pro window is rounded hard enough to take a bite out of a corner
-    // in both directions, so both are kept clear.
-    .safeAreaPadding(.horizontal, 22)
-    .safeAreaPadding(.vertical, 16)
-#else
-    .safeAreaPadding(.horizontal, unfolded ? 16 : 0)
-    .safeAreaPadding(.vertical, unfolded ? 10 : 0)
+#if !os(visionOS)
     .modifier(SideRail(on: unfolded))
     .modifier(BarAtTheBottom())
 #endif
@@ -145,6 +138,36 @@ struct Shell: View {
     }
   }
 
+}
+
+/**
+ * Keeping clear of a rounded corner.
+ *
+ * A window with room in it — an unfolded phone, an iPad, a Vision Pro — is cut
+ * round hard enough to take a bite out of anything that runs to the edge. This
+ * asks the window rather than the device: an unfolded phone reports itself as a
+ * pad, which is how the clearance went missing on one.
+ *
+ * It sits on each page rather than on the tabs, because a TabView keeps its own
+ * safe area and hands its children a fresh one — padding asked for outside it
+ * never arrives inside.
+ */
+struct Corners: ViewModifier {
+#if !os(visionOS)
+  @Environment(\.horizontalSizeClass) private var width
+#endif
+
+  func body(content: Content) -> some View {
+#if os(visionOS)
+    content
+      .safeAreaPadding(.horizontal, 26)
+      .safeAreaPadding(.vertical, 18)
+#else
+    content
+      .safeAreaPadding(.horizontal, width == .regular ? 22 : 0)
+      .safeAreaPadding(.vertical, width == .regular ? 14 : 0)
+#endif
+  }
 }
 
 #if os(iOS)
@@ -234,7 +257,7 @@ struct CreateSheet: View {
         }
         .padding(16)
       }
-      .background(Brand.bg)
+      .background(Brand.ground)
       .navigationTitle("Create")
       .toolbarBackground(Brand.bg2, for: .navigationBar)
       .toolbarBackground(.visible, for: .navigationBar)

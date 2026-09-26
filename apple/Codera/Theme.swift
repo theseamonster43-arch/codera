@@ -24,6 +24,18 @@ enum Brand {
   // these every view falls through to Apple's own greys and Apple's blue, which
   // is what made the app look like two products wearing one name.
   static let bg = shifting(dark: 0x080C0A, light: 0xF5F7F6)
+
+  /// What a whole screen stands on.
+  ///
+  /// On a Vision Pro that is nothing: the window is already glass, and every
+  /// other app's is, so painting Codera's ground across it made one black slab
+  /// among a room of clear ones. Everywhere else it is the ground itself.
+#if os(visionOS)
+  static let ground = Color.clear
+#else
+  static let ground = bg
+#endif
+
   static let bg2 = shifting(dark: 0x0D1411, light: 0xFFFFFF)
   static let bg3 = shifting(dark: 0x111A15, light: 0xEBEFEC)
   static let text = shifting(dark: 0xE2E8E4, light: 0x0F1A14)
