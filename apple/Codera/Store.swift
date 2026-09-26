@@ -167,6 +167,55 @@ final class Store: ObservableObject {
     }
   }
 
+  /// Which way this account voted on a post, as far as the app has been told.
+  @Published var myVotes: [String: Int] = [:]
+
+  /// Reads back the vote on one post, so a thumb shows what was already pressed.
+  func loadVote(_ postId: String) async {
+    guard let me = user?.uid else { return }
+    let ref = Firestore.firestore().document("posts/" + postId + "/votes/" + me)
+    let snap = try? await ref.getDocument()
+    let v = (snap?.get("v") as? Int) ?? 0
+    await MainActor.run { myVotes[postId] = v }
+  }
+
+  /**
+   * A like or a dislike, the same shape the website and the Android app write.
+   *
+   * Pressing the one already pressed takes it back. The vote and the counter
+   * move together in a transaction, because the rules only accept a counter
+   * that moved by one and only from someone whose vote moved with it.
+   */
+  func vote(_ postId: String, _ want: Int) async {
+    guard let me = user?.uid else { return }
+    let db = Firestore.firestore()
+    let mine = db.document("posts/" + postId + "/votes/" + me)
+    let post = db.document("posts/" + postId)
+
+    // Shown at once; the transaction below is the slow part.
+    let had = myVotes[postId] ?? 0
+    let now = had == want ? 0 : want
+    await MainActor.run { myVotes[postId] = now }
+
+    _ = try? await db.runTransaction { tx, _ -> Any? in
+      var likes = 0
+      var dislikes = 0
+      if had == 1 { likes -= 1 }
+      if had == -1 { dislikes -= 1 }
+      if now == 1 { likes += 1 }
+      if now == -1 { dislikes += 1 }
+
+      if now == 0 { tx.deleteDocument(mine) } else {
+        tx.setData(["v": now, "uid": me, "at": FieldValue.serverTimestamp()], forDocument: mine)
+      }
+      tx.updateData([
+        "likeCount": FieldValue.increment(Int64(likes)),
+        "dislikeCount": FieldValue.increment(Int64(dislikes)),
+      ], forDocument: post)
+      return nil
+    }
+  }
+
   func signIn(email: String, password: String) async throws {
     try await Auth.auth().signIn(withEmail: email, password: password)
   }
@@ -310,6 +359,21 @@ final class Store: ObservableObject {
 }
 
 /** "3h", "5d", or a date once it is old enough for the day to matter. */
+/// 1200 as "1.2K", the way the website and the Android app shorten a count.
+func compact(_ n: Int) -> String {
+  if n < 1000 { return String(n) }
+  if n < 1_000_000 {
+    let thousands = Double(n) / 1000
+    return thousands < 10
+      ? String(format: "%.1fK", thousands).replacingOccurrences(of: ".0K", with: "K")
+      : String(Int(thousands)) + "K"
+  }
+  let millions = Double(n) / 1_000_000
+  return millions < 10
+    ? String(format: "%.1fM", millions).replacingOccurrences(of: ".0M", with: "M")
+    : String(Int(millions)) + "M"
+}
+
 func ago(_ date: Date?) -> String {
   guard let date else { return "" }
   let seconds = Date().timeIntervalSince(date)

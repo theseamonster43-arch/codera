@@ -44,46 +44,215 @@ private struct ShortPage: View {
   @EnvironmentObject var store: Store
 
   @State private var player: AVPlayer?
+  @State private var paused = false
+  @State private var at = 0.0            // seconds played
+  @State private var length = 0.0        // seconds long
+  @State private var scrubbing = false
+  @State private var cheered = false     // the heart a double tap throws up
+  @State private var ticker: Any?
+
+  private var mine: Int { store.myVotes[post.id] ?? 0 }
 
   var body: some View {
-    ZStack(alignment: .bottomLeading) {
+    // Centred. The overlay pins itself to the bottom rather than the whole
+    // stack leaning that way — aligning the stack pushed the video into the
+    // corner with it, which is why a short sat low and left.
+    ZStack {
       Color.black
 
       if let player {
-        // A short is a tall picture: it keeps its shape in a wide window rather
-        // than being cropped to the width.
+        // A short is a tall picture: it keeps its shape in a wide window
+        // rather than being cropped to fit the width.
         VideoPlayer(player: player)
           .aspectRatio(9 / 16, contentMode: .fit)
           .allowsHitTesting(false)
       }
 
-      VStack(alignment: .leading, spacing: 6) {
+      // One surface for both taps, over the whole page: one to hold it, two to
+      // like it. A tap that lands on the video's own controls never reaches us,
+      // which is why the player is left out of the hit testing above.
+      Color.clear
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { cheer() }
+        .onTapGesture { holdOrPlay() }
+
+      if paused {
+        Image(systemName: "play.fill")
+          .font(.system(size: 52))
+          .foregroundStyle(.white.opacity(0.92))
+          .shadow(radius: 12)
+          .allowsHitTesting(false)
+          .transition(.opacity)
+      }
+
+      if cheered {
+        Image(systemName: "hand.thumbsup.fill")
+          .font(.system(size: 92))
+          .foregroundStyle(Brand.blue)
+          .shadow(radius: 18)
+          .scaleEffect(cheered ? 1 : 0.4)
+          .allowsHitTesting(false)
+      }
+
+      // What was said about it, along the bottom where it belongs.
+      VStack(alignment: .leading, spacing: 8) {
         HStack(spacing: 8) {
-          Avatar(url: store.photo(for: post), size: 28)
-          Text(post.authorName).font(Sans.bold(14)).foregroundStyle(.white)
-          Text("· \(ago(post.createdAt))").font(Sans.medium(12.5)).foregroundStyle(.white.opacity(0.7))
+          Avatar(url: store.photo(for: post), size: 30)
+          Text(post.authorName).font(Sans.bold(14.5)).foregroundStyle(.white)
+          if post.uid != store.user?.uid {
+            FollowButton(uid: post.uid).scaleEffect(0.85)
+          }
+          Spacer(minLength: 0)
         }
-        Text(post.title).font(Sans.bold(16)).foregroundStyle(.white).lineLimit(3)
+        Text(post.title)
+          .font(Sans.bold(16))
+          .foregroundStyle(.white)
+          .lineLimit(2)
+        Text(ago(post.createdAt))
+          .font(Sans.medium(12))
+          .foregroundStyle(.white.opacity(0.65))
       }
-      .padding(20)
-      .padding(.bottom, 40)
-      .shadow(radius: 8)
-    }
-    .onAppear {
-      guard player == nil, let url = post.videoUrl.flatMap(URL.init(string:)) else { return }
-      let made = AVPlayer(url: url)
-      made.actionAtItemEnd = .none
-      NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime,
-                                             object: made.currentItem, queue: .main) { _ in
-        made.seek(to: .zero)
-        made.play()
+      .padding(.horizontal, 18)
+      .padding(.bottom, 26)
+      .shadow(radius: 10)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+      .frame(maxWidth: 520)
+
+      // Like, dislike and the comment count, up the right-hand edge.
+      VStack(spacing: 20) {
+        tally("hand.thumbsup", post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1) {
+          Task { await store.vote(post.id, 1) }
+        }
+        tally("hand.thumbsdown", post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1) {
+          Task { await store.vote(post.id, -1) }
+        }
+        tally("bubble.right", post.commentCount, on: false) {}
       }
-      player = made
+      .padding(.trailing, 14)
+      .padding(.bottom, 120)
+      .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+
+      // The only control a short needs: how far through it is, and a way to
+      // move. Thin until it is touched, so it stays out of the picture.
+      VStack {
+        Spacer()
+        Scrubber(at: $at, length: length, scrubbing: $scrubbing) { seconds in
+          player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
+        }
+      }
+      .padding(.bottom, 4)
     }
+    .task(id: post.id) { await store.loadVote(post.id) }
+    .onAppear { begin() }
     .onChange(of: playing, initial: true) { _, isPlaying in
-      isPlaying ? player?.play() : player?.pause()
+      guard let player else { return }
+      if isPlaying && !paused { player.play() } else { player.pause() }
     }
-    .onDisappear { player?.pause() }
+    .onDisappear {
+      player?.pause()
+      if let ticker { player?.removeTimeObserver(ticker) }
+      ticker = nil
+    }
+  }
+
+  /// A thumb or a bubble with its count under it.
+  private func tally(_ glyph: String, _ count: Int, on: Bool, _ press: @escaping () -> Void) -> some View {
+    Button(action: press) {
+      VStack(spacing: 5) {
+        Image(systemName: on ? glyph + ".fill" : glyph)
+          .font(.system(size: 25, weight: .medium))
+          .foregroundStyle(on ? Brand.blue : .white)
+        Text(compact(count))
+          .font(Sans.semibold(12.5))
+          .foregroundStyle(.white)
+      }
+      .shadow(radius: 8)
+      .frame(width: 54)
+    }
+    .buttonStyle(.plain)
+  }
+
+  private func holdOrPlay() {
+    guard let player else { return }
+    paused.toggle()
+    withAnimation(.easeOut(duration: 0.15)) { }
+    paused ? player.pause() : player.play()
+  }
+
+  /// Two taps means a like — and never an unlike, which is not what a double
+  /// tap ever means.
+  private func cheer() {
+    if mine != 1 { Task { await store.vote(post.id, 1) } }
+    withAnimation(.spring(response: 0.3, dampingFraction: 0.5)) { cheered = true }
+    Task {
+      try? await Task.sleep(for: .milliseconds(650))
+      withAnimation(.easeOut(duration: 0.25)) { cheered = false }
+    }
+  }
+
+  private func begin() {
+    guard player == nil, let url = post.videoUrl.flatMap(URL.init(string:)) else { return }
+    let made = AVPlayer(url: url)
+    made.actionAtItemEnd = .none
+    NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime,
+                                           object: made.currentItem, queue: .main) { _ in
+      made.seek(to: .zero)
+      made.play()
+    }
+    // Ten times a second is enough for a bar and cheap enough to leave running.
+    ticker = made.addPeriodicTimeObserver(
+      forInterval: CMTime(seconds: 0.1, preferredTimescale: 600), queue: .main
+    ) { time in
+      if !scrubbing { at = time.seconds }
+      if let item = made.currentItem, item.duration.isNumeric {
+        length = item.duration.seconds
+      }
+    }
+    player = made
+  }
+}
+
+/**
+ * How far through a short is, and a way to move within it.
+ *
+ * A hairline while it plays, thickening under a finger — a short is something
+ * watched rather than operated, and a full set of transport controls over the
+ * picture would be in the way of the thing itself.
+ */
+private struct Scrubber: View {
+  @Binding var at: Double
+  let length: Double
+  @Binding var scrubbing: Bool
+  let seek: (Double) -> Void
+
+  var body: some View {
+    GeometryReader { geo in
+      let width = geo.size.width
+      let through = length > 0 ? min(max(at / length, 0), 1) : 0
+
+      ZStack(alignment: .leading) {
+        Capsule().fill(.white.opacity(0.22))
+        Capsule().fill(.white).frame(width: width * through)
+      }
+      .frame(height: scrubbing ? 7 : 3)
+      .frame(maxHeight: .infinity, alignment: .center)
+      .animation(.easeOut(duration: 0.12), value: scrubbing)
+      .contentShape(Rectangle())
+      .gesture(
+        DragGesture(minimumDistance: 0)
+          .onChanged { touch in
+            guard length > 0 else { return }
+            scrubbing = true
+            at = min(max(touch.location.x / width, 0), 1) * length
+          }
+          .onEnded { _ in
+            scrubbing = false
+            seek(at)
+          }
+      )
+    }
+    .frame(height: 26)
+    .padding(.horizontal, 12)
   }
 }
 
