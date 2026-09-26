@@ -34,7 +34,7 @@ struct WatchPage: View {
           .frame(maxWidth: .infinity)
           .overlay {
             if let player {
-              CoderaPlayer(player: player, full: false) { full = true }
+              CoderaPlayer(player: player, full: false, onFull: { full = true })
             }
           }
           .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -51,7 +51,7 @@ struct WatchPage: View {
               }
             }
           }
-          .buttonStyle(.plain)
+          .buttonStyle(Tappable())
           Spacer(minLength: 8)
           if post.uid != store.user?.uid {
             FollowButton(uid: post.uid)
@@ -95,7 +95,7 @@ struct WatchPage: View {
       ZStack {
         Color.black.ignoresSafeArea()
         if let player {
-          CoderaPlayer(player: player, full: true) { full = false }
+          CoderaPlayer(player: player, full: true, onFull: { full = false })
             .aspectRatio(tall ? 9.0 / 16.0 : 16.0 / 9.0, contentMode: .fit)
         }
       }
@@ -117,11 +117,13 @@ struct WatchPage: View {
         Text(compact(n)).font(Sans.semibold(14))
       }
       .foregroundStyle(on ? Brand.blue : Brand.text)
+      .scaleEffect(on ? 1.05 : 1)
+      .animation(.spring(response: 0.3, dampingFraction: 0.5), value: on)
       .padding(.horizontal, 14)
       .frame(height: 38)
       .background(Brand.bg2, in: Capsule())
       .overlay(Capsule().stroke(Brand.line, lineWidth: 1))
     }
-    .buttonStyle(.plain)
+    .buttonStyle(Tappable())
   }
 }

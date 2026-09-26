@@ -24,6 +24,9 @@ struct Glyph: View {
           .stroke(style: StrokeStyle(lineWidth: weight, lineCap: .round, lineJoin: .round))
       )
       .frame(width: size, height: size)
+      // An outline is a few hairlines of actual ink, and a hairline is all
+      // there would be to press. The square it is drawn in is the button.
+      .contentShape(Rectangle())
   }
 }
 

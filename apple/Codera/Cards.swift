@@ -60,7 +60,7 @@ struct VideoCard: View {
         RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Brand.line, lineWidth: 1)
       )
     }
-    .buttonStyle(.plain)
+    .buttonStyle(Tappable(scale: 0.975))
   }
 }
 

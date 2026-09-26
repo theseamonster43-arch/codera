@@ -83,7 +83,7 @@ struct CoderaPlayer: View {
               .foregroundStyle(.white)
               .frame(width: 30, height: 30)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(Tappable())
 
             Text("\(clock(at)) / \(clock(length))")
               .font(Sans.semibold(12.5))
@@ -103,7 +103,7 @@ struct CoderaPlayer: View {
                   .foregroundStyle(.white)
                   .frame(width: 30, height: 30)
               }
-              .buttonStyle(.plain)
+              .buttonStyle(Tappable())
             }
           }
           .padding(.horizontal, 12)

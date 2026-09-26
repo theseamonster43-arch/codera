@@ -133,7 +133,7 @@ struct CommentThread: View {
             .background(Brand.mark, in: Circle())
             .opacity(canSend ? 1 : 0.4)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Tappable())
         .disabled(!canSend)
       }
     }

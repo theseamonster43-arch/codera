@@ -103,6 +103,8 @@ struct PostCard: View {
   @EnvironmentObject var store: Store
   @State private var talking = false
 
+  private var mine: Int { store.myVotes[post.id] ?? 0 }
+
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack(spacing: 9) {
@@ -113,7 +115,7 @@ struct PostCard: View {
             Text(post.authorName).font(Sans.bold(14)).lineLimit(1)
           }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Tappable())
         Spacer(minLength: 6)
         Text(ago(post.createdAt)).font(Sans.medium(12.5)).foregroundStyle(Brand.muted)
       }
@@ -141,15 +143,23 @@ struct PostCard: View {
         .background(Brand.bg3, in: RoundedRectangle(cornerRadius: 10))
       }
 
+      // All three do something: the thumbs vote, the count opens what it is
+      // counting. They were labels, which is why nothing happened.
       HStack(spacing: 16) {
-        tally(Ink.up, post.likeCount)
-        tally(Ink.up, post.dislikeCount, over: true)
-        // The only one of the three that leads anywhere: the count opens what
-        // it is counting.
+        Button { Task { await store.vote(post.id, 1) } } label: {
+          tally(Ink.up, post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1)
+        }
+        .buttonStyle(Tappable())
+
+        Button { Task { await store.vote(post.id, -1) } } label: {
+          tally(Ink.up, post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1, over: true)
+        }
+        .buttonStyle(Tappable())
+
         Button { talking = true } label: {
           tally(Ink.comment, post.commentCount)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(Tappable())
       }
       .font(Sans.semibold(13))
       .foregroundStyle(Brand.muted)
@@ -159,17 +169,22 @@ struct PostCard: View {
     .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16))
     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
     .sheet(isPresented: $talking) { CommentSheet(post: post) }
+    .task(id: post.id) { await store.loadVote(post.id) }
   }
 }
 
 extension PostCard {
   /// A count with Codera's own glyph beside it.
-  fileprivate func tally(_ glyph: String, _ n: Int, over: Bool = false) -> some View {
+  fileprivate func tally(_ glyph: String, _ n: Int, on: Bool = false,
+                         over: Bool = false) -> some View {
     HStack(spacing: 5) {
-      Glyph(path: glyph, weight: 1.7, size: 17)
+      Glyph(path: glyph, filled: on, weight: 1.7, size: 17)
         .rotationEffect(.degrees(over ? 180 : 0))
       Text(compact(n))
     }
+    .foregroundStyle(on ? Brand.blue : Brand.muted)
+    .scaleEffect(on ? 1.08 : 1)
+    .animation(.spring(response: 0.3, dampingFraction: 0.5), value: on)
   }
 }
 
@@ -315,7 +330,7 @@ struct SignInView: View {
       .padding(.horizontal, 16)
       .frame(maxWidth: .infinity, minHeight: 50)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(Tappable())
     .foregroundStyle(.primary)
     .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     .overlay(

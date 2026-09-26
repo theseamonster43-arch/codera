@@ -139,6 +139,23 @@ enum Sans {
   }
 }
 
+/**
+ * The press every small control answers with.
+ *
+ * A thumb, a card, a play button: something has to move under a finger, or a
+ * press that is still on its way to the database reads as a press that missed.
+ */
+struct Tappable: ButtonStyle {
+  var scale: CGFloat = 0.88
+
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .scaleEffect(configuration.isPressed ? scale : 1)
+      .opacity(configuration.isPressed ? 0.7 : 1)
+      .animation(.spring(response: 0.26, dampingFraction: 0.55), value: configuration.isPressed)
+  }
+}
+
 /** The green-to-blue button: one to a screen, for the thing the screen is for. */
 struct BrandButton: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {

@@ -174,6 +174,8 @@ private struct ShortPage: View {
         Glyph(path: glyph, filled: on, weight: 1.9, size: 27)
           .rotationEffect(.degrees(over ? 180 : 0))
           .foregroundStyle(on ? Brand.blue : .white)
+          .scaleEffect(on ? 1.1 : 1)
+          .animation(.spring(response: 0.3, dampingFraction: 0.5), value: on)
         Text(compact(count))
           .font(Sans.semibold(12.5))
           .foregroundStyle(.white)
@@ -181,7 +183,7 @@ private struct ShortPage: View {
       .shadow(radius: 8)
       .frame(width: 54)
     }
-    .buttonStyle(.plain)
+    .buttonStyle(Tappable())
   }
 
   private func holdOrPlay() {
@@ -305,7 +307,7 @@ struct FollowingView: View {
                     Text(person.authorName).font(Sans.semibold(12)).lineLimit(1).frame(width: 70)
                   }
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(Tappable())
               }
             }
             .padding(.horizontal, 16)
