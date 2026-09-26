@@ -64,10 +64,9 @@ private struct ShortPage: View {
   private var mine: Int { store.myVotes[post.id] ?? 0 }
 
   var body: some View {
-    // Everything sits in the box the video itself occupies, not the box the
-    // screen gives. On a phone those are the same thing; unfolded, on an iPad
-    // or in a Vision Pro window they are not, and a name pinned to the corner
-    // of the screen ends up a hand's width from the short it belongs to.
+    // The picture keeps its own shape in the middle of the page. Everything
+    // drawn over it runs to the edges of the page, not to the edges of the
+    // picture: the controls belong to the screen you are holding.
     GeometryReader { geo in
       let tall = min(geo.size.height, geo.size.width * 16 / 9)
       let wide = tall * 9 / 16
@@ -75,85 +74,83 @@ private struct ShortPage: View {
       ZStack {
         Color.black
 
-        ZStack {
-          if let player {
-            // The surface is the picture alone — the controls over it are ours.
-            PlayerSurface(player: player)
-              .allowsHitTesting(false)
-          }
-
-          // One surface for both taps, over the whole page: one to hold it, two to
-          // like it. A tap that lands on the video's own controls never reaches us,
-          // which is why the player is left out of the hit testing above.
-          Color.clear
-            .contentShape(Rectangle())
-            .onTapGesture(count: 2) { cheer() }
-            .onTapGesture { holdOrPlay() }
-
-          if paused {
-            Glyph(path: Ink.play, filled: true, weight: 1, size: 60)
-              .foregroundStyle(.white.opacity(0.92))
-              .shadow(radius: 12)
-              .allowsHitTesting(false)
-              .transition(.opacity)
-          }
-
-          if cheered {
-            Thumb(on: true, size: 92)
-              .foregroundStyle(Brand.blue)
-              .shadow(radius: 18)
-              .scaleEffect(cheered ? 1 : 0.4)
-              .allowsHitTesting(false)
-          }
-
-          // What was said about it, along the bottom where it belongs.
-          VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-              Avatar(url: store.photo(for: post), size: 30)
-              Text(post.authorName).font(Sans.bold(14.5)).foregroundStyle(.white)
-              if post.uid != store.user?.uid {
-                FollowButton(uid: post.uid).scaleEffect(0.85)
-              }
-              Spacer(minLength: 0)
-            }
-            Text(post.title)
-              .font(Sans.bold(16))
-              .foregroundStyle(.white)
-              .lineLimit(2)
-            Text(ago(post.createdAt))
-              .font(Sans.medium(12))
-              .foregroundStyle(.white.opacity(0.65))
-          }
-          .padding(.horizontal, 18)
-          .padding(.bottom, 26)
-          .shadow(radius: 10)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-
-          // Like, dislike and the comment count, up the right-hand edge.
-          VStack(spacing: 20) {
-            tally(Ink.up, post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1) {
-              Task { await store.vote(post.id, 1) }
-            }
-            tally(Ink.up, post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1, over: true) {
-              Task { await store.vote(post.id, -1) }
-            }
-            tally(Ink.comment, post.commentCount, on: false) { talking = true }
-          }
-          .padding(.trailing, 14)
-          .padding(.bottom, 120)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-
-          // The only control a short needs: how far through it is, and a way to
-          // move. Thin until it is touched, so it stays out of the picture.
-          VStack {
-            Spacer()
-            Scrubber(at: $at, length: length, scrubbing: $scrubbing) { seconds in
-              player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
-            }
-          }
-          .padding(.bottom, 4)
+        if let player {
+          // The surface is the picture alone — the controls over it are ours.
+          PlayerSurface(player: player)
+            .frame(width: wide, height: tall)
+            .allowsHitTesting(false)
         }
-        .frame(width: wide, height: tall)
+
+        // One surface for both taps, over the whole page: one to hold it, two to
+        // like it. A tap that lands on the video's own controls never reaches us,
+        // which is why the player is left out of the hit testing above.
+        Color.clear
+          .contentShape(Rectangle())
+          .onTapGesture(count: 2) { cheer() }
+          .onTapGesture { holdOrPlay() }
+
+        if paused {
+          Glyph(path: Ink.play, filled: true, weight: 1, size: 60)
+            .foregroundStyle(.white.opacity(0.92))
+            .shadow(radius: 12)
+            .allowsHitTesting(false)
+            .transition(.opacity)
+        }
+
+        if cheered {
+          Thumb(on: true, size: 92)
+            .foregroundStyle(Brand.blue)
+            .shadow(radius: 18)
+            .scaleEffect(cheered ? 1 : 0.4)
+            .allowsHitTesting(false)
+        }
+
+        // What was said about it, along the bottom where it belongs.
+        VStack(alignment: .leading, spacing: 8) {
+          HStack(spacing: 8) {
+            Avatar(url: store.photo(for: post), size: 30)
+            Text(post.authorName).font(Sans.bold(14.5)).foregroundStyle(.white)
+            if post.uid != store.user?.uid {
+              FollowButton(uid: post.uid).scaleEffect(0.85)
+            }
+            Spacer(minLength: 0)
+          }
+          Text(post.title)
+            .font(Sans.bold(16))
+            .foregroundStyle(.white)
+            .lineLimit(2)
+          Text(ago(post.createdAt))
+            .font(Sans.medium(12))
+            .foregroundStyle(.white.opacity(0.65))
+        }
+        .padding(.horizontal, 18)
+        .padding(.bottom, 26)
+        .shadow(radius: 10)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+
+        // Like, dislike and the comment count, up the right-hand edge.
+        VStack(spacing: 20) {
+          tally(Ink.up, post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1) {
+            Task { await store.vote(post.id, 1) }
+          }
+          tally(Ink.up, post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1, over: true) {
+            Task { await store.vote(post.id, -1) }
+          }
+          tally(Ink.comment, post.commentCount, on: false) { talking = true }
+        }
+        .padding(.trailing, 14)
+        .padding(.bottom, 120)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+
+        // The only control a short needs: how far through it is, and a way to
+        // move. Thin until it is touched, so it stays out of the picture.
+        VStack {
+          Spacer()
+          Scrubber(at: $at, length: length, scrubbing: $scrubbing) { seconds in
+            player?.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
+          }
+        }
+        .padding(.bottom, 4)
       }
       .frame(width: geo.size.width, height: geo.size.height)
     }
