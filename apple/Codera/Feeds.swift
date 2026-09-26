@@ -30,8 +30,11 @@ struct ShortsView: View {
         }
         .scrollTargetBehavior(.paging)
         .scrollPosition(id: $showing)
-        .ignoresSafeArea()
-        .background(.black)
+        // The black runs to the edges, but the pages are measured and laid out
+        // inside the bars. Letting the scroll itself ignore the safe area made
+        // every page shorter than the screen it scrolled in, so each short sat
+        // high and the bar underneath it floated in the middle of nothing.
+        .background(Color.black.ignoresSafeArea())
         .onAppear { showing = store.shorts.first?.id }
       }
     }
@@ -50,6 +53,7 @@ private struct ShortPage: View {
   @State private var scrubbing = false
   @State private var cheered = false     // the heart a double tap throws up
   @State private var ticker: Any?
+  @State private var talking = false   // the comments, over the short
 
   private var mine: Int { store.myVotes[post.id] ?? 0 }
 
@@ -126,7 +130,7 @@ private struct ShortPage: View {
         tally("hand.thumbsdown", post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1) {
           Task { await store.vote(post.id, -1) }
         }
-        tally("bubble.right", post.commentCount, on: false) {}
+        tally("bubble.right", post.commentCount, on: false) { talking = true }
       }
       .padding(.trailing, 14)
       .padding(.bottom, 120)
@@ -143,6 +147,14 @@ private struct ShortPage: View {
       .padding(.bottom, 4)
     }
     .task(id: post.id) { await store.loadVote(post.id) }
+    .sheet(isPresented: $talking) { CommentSheet(post: post) }
+#if DEBUG
+    // -openComments 1 opens the thread over the short being watched, which is
+    // how it gets looked at on a simulator with no way to tap.
+    .task(id: playing) {
+      if playing, UserDefaults.standard.bool(forKey: "openComments") { talking = true }
+    }
+#endif
     .onAppear { begin() }
     .onChange(of: playing, initial: true) { _, isPlaying in
       guard let player else { return }

@@ -90,10 +90,17 @@ struct Shell: View {
     }
 #if DEBUG
     // Launching with -openCompose post (or short, video, live) opens that
-    // composer straight away, which is how the shell-presents-the-composer
-    // path gets checked on a simulator with no way to tap.
+    // composer straight away, and -startTab 1 opens on Shorts: both are how
+    // these pages get looked at on a simulator with no way to tap.
     .task {
       if let kind = UserDefaults.standard.string(forKey: "openCompose") { making = kind }
+      // Launch arguments arrive as text, so the number is read out of it.
+      if let asked = UserDefaults.standard.object(forKey: "startTab"),
+         let want = Int(String(describing: asked)),
+         (0...4).contains(want), want != 2 {
+        tab = want
+        previous = want
+      }
     }
 #endif
     .onChange(of: tab) { old, new in

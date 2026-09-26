@@ -103,6 +103,23 @@ enum Sans {
     UITabBar.appearance().standardAppearance = bar
     UITabBar.appearance().scrollEdgeAppearance = bar
 
+    // Set on an appearance object, not on the bar: a bar told to show a
+    // background builds one of these for itself, and anything set only on the
+    // bar is lost with it — which is where Apple's font kept coming back.
+    let nav = UINavigationBarAppearance()
+    nav.configureWithDefaultBackground()
+    nav.titleTextAttributes = [.font: title]
+    nav.largeTitleTextAttributes = [.font: big]
+    if let action = UIFont(name: "ScoutieSans-SemiBold", size: 17) {
+      for button in [nav.buttonAppearance, nav.doneButtonAppearance, nav.backButtonAppearance] {
+        button.normal.titleTextAttributes = [.font: action]
+        button.highlighted.titleTextAttributes = [.font: action]
+        button.disabled.titleTextAttributes = [.font: action]
+      }
+    }
+    UINavigationBar.appearance().standardAppearance = nav
+    UINavigationBar.appearance().compactAppearance = nav
+    UINavigationBar.appearance().scrollEdgeAppearance = nav
     UINavigationBar.appearance().titleTextAttributes = [.font: title]
     UINavigationBar.appearance().largeTitleTextAttributes = [.font: big]
 

@@ -43,6 +43,25 @@ struct Post: Identifiable, Hashable {
   var hasVideo: Bool { type == "short" || type == "video" || type == "live" }
 }
 
+/** One thing somebody said under a post: a `posts/{id}/comments` document. */
+struct Comment: Identifiable, Hashable {
+  let id: String
+  let uid: String
+  let text: String
+  let authorName: String
+  let authorPhoto: String?
+  let createdAt: Date?
+
+  init(id: String, data: [String: Any]) {
+    self.id = id
+    uid = data["uid"] as? String ?? ""
+    text = data["text"] as? String ?? ""
+    authorName = data["authorName"] as? String ?? "someone"
+    authorPhoto = data["authorPhoto"] as? String
+    createdAt = (data["createdAt"] as? Timestamp)?.dateValue()
+  }
+}
+
 /** What someone chose to show about themselves: `profiles/{uid}`. */
 struct Profile {
   let username: String?
@@ -171,6 +190,53 @@ final class Store: ObservableObject {
   @Published var myVotes: [String: Int] = [:]
 
   /// Reads back the vote on one post, so a thumb shows what was already pressed.
+  /**
+   * What has been said under a post, oldest first, as it is being said.
+   *
+   * The thread is only open while it is being looked at, so this hands back the
+   * listener for the sheet to let go of when it closes.
+   */
+  nonisolated func watchComments(on postId: String,
+                                 _ onChange: @escaping ([Comment]) -> Void) -> ListenerRegistration {
+    Firestore.firestore().collection("posts").document(postId).collection("comments")
+      .order(by: "createdAt").limit(to: 200)
+      .addSnapshotListener { snap, _ in
+        let said = snap?.documents.map { Comment(id: $0.documentID, data: $0.data()) } ?? []
+        Task { @MainActor in onChange(said) }
+      }
+  }
+
+  /**
+   * Say something under a post.
+   *
+   * The comment and the count move together, as the votes do: the rules accept
+   * a counter that moved by one, and nothing else about the post.
+   */
+  func say(_ text: String, on post: Post) async throws {
+    var said = try author()
+    let body = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !body.isEmpty else { return }
+    if let problem = Safety.contactProblem(body, theirs: post.uid == user?.uid) {
+      throw Blocked(problem)
+    }
+    said["text"] = String(body.prefix(1000))
+    said["createdAt"] = FieldValue.serverTimestamp()
+
+    let db = Firestore.firestore()
+    try await db.collection("posts").document(post.id).collection("comments").addDocument(data: said)
+    try? await db.collection("posts").document(post.id)
+      .updateData(["commentCount": FieldValue.increment(Int64(1))])
+  }
+
+  /// Take one back down: your own anywhere, or anything under your own post.
+  func unsay(_ comment: Comment, on post: Post) async {
+    let db = Firestore.firestore()
+    try? await db.collection("posts").document(post.id)
+      .collection("comments").document(comment.id).delete()
+    try? await db.collection("posts").document(post.id)
+      .updateData(["commentCount": FieldValue.increment(Int64(-1))])
+  }
+
   func loadVote(_ postId: String) async {
     guard let me = user?.uid else { return }
     let ref = Firestore.firestore().document("posts/" + postId + "/votes/" + me)

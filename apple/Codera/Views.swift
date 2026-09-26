@@ -93,6 +93,7 @@ struct HomeView: View {
 struct PostCard: View {
   let post: Post
   @EnvironmentObject var store: Store
+  @State private var talking = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -142,7 +143,12 @@ struct PostCard: View {
       HStack(spacing: 16) {
         Label("\(post.likeCount)", systemImage: "hand.thumbsup")
         Label("\(post.dislikeCount)", systemImage: "hand.thumbsdown")
-        Label("\(post.commentCount)", systemImage: "bubble")
+        // The only one of the three that leads anywhere: the count opens what
+        // it is counting.
+        Button { talking = true } label: {
+          Label("\(post.commentCount)", systemImage: "bubble")
+        }
+        .buttonStyle(.plain)
       }
       .font(Sans.semibold(13))
       .foregroundStyle(Brand.muted)
@@ -151,6 +157,7 @@ struct PostCard: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16))
     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
+    .sheet(isPresented: $talking) { CommentSheet(post: post) }
   }
 }
 
