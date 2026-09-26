@@ -32,9 +32,13 @@ struct CommentSheet: View {
           .font(Sans.heavy(17))
           .foregroundStyle(Brand.text)
         Spacer(minLength: 8)
-        Button("Close") { dismiss() }
-          .font(Sans.semibold(15))
-          .tint(Brand.blue)
+        // The glass capsule a toolbar would have given it, kept — with
+        // Codera's lettering on it rather than Apple's.
+        Button { dismiss() } label: {
+          Text("Close").font(Sans.semibold(15))
+        }
+        .buttonStyle(.glass)
+        .tint(Brand.text)
       }
       .padding(.horizontal, 16)
       .padding(.top, 18)
