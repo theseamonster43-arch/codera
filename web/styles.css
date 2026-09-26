@@ -1426,3 +1426,9 @@ body.lb-open { overflow: hidden; }
   color: var(--text);
 }
 .picked button .i { width: 13px; height: 13px; }
+
+/* What a tip comes to in the tipper's own money ---------------------------- */
+.tip-in {
+  margin: -4px 0 14px;
+  font-size: 13px; font-weight: 600; color: var(--muted);
+}

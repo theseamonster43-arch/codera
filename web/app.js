@@ -3088,6 +3088,7 @@ function openTip(s) {
     <p class="note">Your tip goes to ${esc(name)} and shows up highlighted in the chat for everyone watching. Codera keeps 3%.</p>
     <div class="chips tip-amounts">${TIP_AMOUNTS.map(a =>
       `<button class="chip${a === amount ? ' on' : ''}" data-amt="${a}">$${a / 100}</button>`).join('')}</div>
+    <p class="note tip-in" id="tipIn" hidden></p>
     <input class="field" id="tipMsg" maxlength="200" placeholder="Add a message (optional)">
     <div id="tipPay" class="tip-pay"></div>
     <p class="err" id="tipErr"></p>
@@ -3097,10 +3098,56 @@ function openTip(s) {
     </div>`);
 
   const go = el('tipGo');
+
+  /**
+   * What each amount comes to in the money this person actually spends.
+   *
+   * Tipping is not Plus: a tip is charged in dollars, so unlike the Plus price
+   * this is a conversion rather than the figure that leaves the account. The
+   * amounts read in their own money, because "$5" means nothing to somebody
+   * who thinks in rupees, and the line underneath says what is really charged
+   * so nobody is surprised by their statement.
+   */
+  let money = null;
+  const inTheirMoney = cents => {
+    if (!money) return null;
+    const worth = (cents / 100) * money.rate;
+    // Whole numbers where the currency has no small unit worth showing.
+    const big = worth >= 500;
+    return new Intl.NumberFormat(navigator.language || 'en', {
+      style: 'currency', currency: money.code,
+      maximumFractionDigits: big ? 0 : 2, minimumFractionDigits: big ? 0 : 2,
+    }).format(worth);
+  };
+
+  const sayLocal = () => {
+    const line = el('tipIn');
+    if (!line || !money) return;
+    line.hidden = false;
+    line.textContent = inTheirMoney(amount) + ', charged as $'
+      + (amount / 100).toFixed(2) + ' — your bank converts it.';
+  };
+
   const setAmount = a => {
     amount = a;
     document.querySelectorAll('[data-amt]').forEach(b => b.classList.toggle('on', Number(b.dataset.amt) === a));
+    sayLocal();
   };
+
+  // The rate takes a moment and may never come; the dollar amounts stand until
+  // it does, and stay standing if it doesn't.
+  (async () => {
+    const code = localCurrency();
+    if (!code) return;
+    const rate = await dollarRate(code);
+    if (!rate) return;
+    money = { code, rate };
+    document.querySelectorAll('[data-amt]').forEach(b => {
+      const said = inTheirMoney(Number(b.dataset.amt));
+      if (said) b.textContent = said;
+    });
+    sayLocal();
+  })();
   document.querySelectorAll('[data-amt]').forEach(b => { b.onclick = () => { if (!elements) setAmount(Number(b.dataset.amt)); }; });
 
   go.onclick = async () => {
