@@ -296,27 +296,3 @@ final class Thumbnails {
   }
 }
 
-struct VideoThumb: View {
-  let url: String?
-  @State private var frame: Image?
-
-  var body: some View {
-    ZStack {
-      RoundedRectangle(cornerRadius: 12).fill(.black)
-      if let frame {
-        frame.resizable().scaledToFill()
-      }
-      Image(systemName: "play.circle.fill")
-        .font(.system(size: 42))
-        .foregroundStyle(.white.opacity(0.92))
-        .shadow(radius: 6)
-    }
-    .frame(height: 180)
-    .clipped()
-    .clipShape(RoundedRectangle(cornerRadius: 12))
-    .task {
-      guard let url else { return }
-      frame = await Thumbnails.shared.make(for: url)
-    }
-  }
-}

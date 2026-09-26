@@ -4,15 +4,19 @@ import FirebaseFirestore
 /**
  * What people said under a post.
  *
- * Opened from the bubble, wherever the bubble is: over a short, or from a card
- * in the feed. It is the same thread the website and the Android app show, and
- * it holds its listener only while it is open — a feed of 150 posts would
- * otherwise be 150 live threads nobody is reading.
+ * The same thread the website and the Android app show, in two places: on a
+ * watch page, where it belongs on the page under the video, and over a short,
+ * where there is no page to put it on. It holds its listener only while it is
+ * on screen — a feed of 150 posts would otherwise be 150 live threads nobody
+ * is reading.
  */
-struct CommentSheet: View {
+struct CommentThread: View {
   let post: Post
+  /// Whether it scrolls itself, or sits inside a page that already does.
+  var scrolls = true
+  var heading = true
+
   @EnvironmentObject var store: Store
-  @Environment(\.dismiss) private var dismiss
 
   @State private var said: [Comment] = []
   @State private var loading = true
@@ -23,37 +27,25 @@ struct CommentSheet: View {
   @FocusState private var writing: Bool
 
   var body: some View {
-    // The heading is drawn here rather than left to a navigation bar: a bar
-    // with a background set takes its own appearance object with it, and that
-    // object carries Apple's font, not Codera's.
-    VStack(spacing: 0) {
-      HStack {
-        Text(said.isEmpty ? "Comments" : "\(said.count) comment\(said.count == 1 ? "" : "s")")
-          .font(Sans.heavy(17))
+    VStack(alignment: .leading, spacing: 0) {
+      if heading {
+        Text(said.isEmpty ? "Comments" : plural(said.count, "comment"))
+          .font(Sans.bold(17))
           .foregroundStyle(Brand.text)
-        Spacer(minLength: 8)
-        // The glass capsule a toolbar would have given it, kept — with
-        // Codera's lettering on it rather than Apple's.
-        Button { dismiss() } label: {
-          Text("Close").font(Sans.semibold(15))
-        }
-        .buttonStyle(.glass)
-        .tint(Brand.text)
+          .padding(.bottom, 12)
       }
-      .padding(.horizontal, 16)
-      .padding(.top, 18)
-      .padding(.bottom, 14)
-      .background(Brand.bg2)
 
-      Divider().overlay(Brand.line)
-      thread
-      Divider().overlay(Brand.line)
+      if scrolls {
+        ScrollView { rows.padding(.bottom, 8) }
+        Divider().overlay(Brand.line)
+      } else {
+        rows
+      }
+
       box
     }
-    .background(Brand.bg)
-    .presentationDetents([.medium, .large])
-    .presentationBackground(Brand.bg)
     .onAppear {
+      guard listener == nil else { return }
       listener = store.watchComments(on: post.id) { comments in
         said = comments
         loading = false
@@ -66,29 +58,23 @@ struct CommentSheet: View {
   }
 
   @ViewBuilder
-  private var thread: some View {
+  private var rows: some View {
     if loading {
-      ProgressView().tint(Brand.muted).frame(maxWidth: .infinity, maxHeight: .infinity)
+      ProgressView().tint(Brand.muted)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 24)
     } else if said.isEmpty {
-      VStack(spacing: 6) {
-        Text("No comments yet").font(Sans.bold(16)).foregroundStyle(Brand.text)
+      VStack(alignment: .leading, spacing: 4) {
+        Text("No comments yet").font(Sans.bold(15)).foregroundStyle(Brand.text)
         Text("Say the first thing.").font(Sans.regular(14)).foregroundStyle(Brand.muted)
       }
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.vertical, 18)
     } else {
-      ScrollViewReader { scroll in
-        ScrollView {
-          LazyVStack(alignment: .leading, spacing: 18) {
-            ForEach(said) { one in row(one) }
-          }
-          .padding(16)
-        }
-        .onChange(of: said.count) { _, _ in
-          // A comment lands at the bottom, so that is where the thread goes.
-          guard let last = said.last else { return }
-          withAnimation { scroll.scrollTo(last.id, anchor: .bottom) }
-        }
+      LazyVStack(alignment: .leading, spacing: 18) {
+        ForEach(said) { row($0) }
       }
+      .padding(.vertical, 4)
     }
   }
 
@@ -141,8 +127,7 @@ struct CommentSheet: View {
           .onChange(of: draft) { _, _ in problem = nil }
 
         Button(action: send) {
-          Image(systemName: "arrow.up")
-            .font(.system(size: 17, weight: .bold))
+          Glyph(path: Ink.send, weight: 2.1, size: 19)
             .foregroundStyle(.white)
             .frame(width: 40, height: 40)
             .background(Brand.mark, in: Circle())
@@ -152,8 +137,7 @@ struct CommentSheet: View {
         .disabled(!canSend)
       }
     }
-    .padding(14)
-    .background(Brand.bg2)
+    .padding(.top, 12)
   }
 
   private var canSend: Bool {
@@ -174,5 +158,45 @@ struct CommentSheet: View {
       }
       sending = false
     }
+  }
+}
+
+/** The thread raised over something that has no page of its own — a short. */
+struct CommentSheet: View {
+  let post: Post
+  @Environment(\.dismiss) private var dismiss
+
+  var body: some View {
+    // The heading is drawn here rather than left to a navigation bar: a bar
+    // with a background set takes its own appearance object with it, and that
+    // object carries Apple's font, not Codera's.
+    VStack(spacing: 0) {
+      HStack {
+        Text("Comments")
+          .font(Sans.heavy(17))
+          .foregroundStyle(Brand.text)
+        Spacer(minLength: 8)
+        // The glass capsule a toolbar would have given it, kept — with
+        // Codera's lettering on it rather than Apple's.
+        Button { dismiss() } label: {
+          Text("Close").font(Sans.semibold(15))
+        }
+        .buttonStyle(.glass)
+        .tint(Brand.text)
+      }
+      .padding(.horizontal, 16)
+      .padding(.top, 18)
+      .padding(.bottom, 14)
+      .background(Brand.bg2)
+
+      Divider().overlay(Brand.line)
+
+      CommentThread(post: post, scrolls: true, heading: false)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 14)
+    }
+    .background(Brand.bg)
+    .presentationDetents([.medium, .large])
+    .presentationBackground(Brand.bg)
   }
 }

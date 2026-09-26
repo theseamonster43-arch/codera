@@ -14,7 +14,11 @@ struct Post: Identifiable, Hashable {
   let code: String?
   let language: String?
   let imageUrl: String?
+  /// Every picture on the post. Older posts carry one, in `imageUrl`.
+  let imageUrls: [String]
   let videoUrl: String?
+  /// How long a video runs, in seconds, as the uploader measured it.
+  let duration: Double?
   let authorName: String
   let authorPhoto: String?
   let createdAt: Date?
@@ -31,7 +35,15 @@ struct Post: Identifiable, Hashable {
     code = data["code"] as? String
     language = data["lang"] as? String ?? data["language"] as? String
     imageUrl = data["imageUrl"] as? String
+    // The list is what a post carries now; the single one is what it carried
+    // before, and what an app too old to know about the list still writes.
+    if let many = data["imageUrls"] as? [String], !many.isEmpty {
+      imageUrls = many
+    } else {
+      imageUrls = (data["imageUrl"] as? String).map { [$0] } ?? []
+    }
     videoUrl = data["videoUrl"] as? String
+    duration = data["duration"] as? Double
     authorName = data["authorName"] as? String ?? "someone"
     authorPhoto = data["authorPhoto"] as? String
     createdAt = (data["createdAt"] as? Timestamp)?.dateValue()
@@ -308,15 +320,29 @@ final class Store: ObservableObject {
     var errorDescription: String? { what }
   }
 
-  func createPost(title: String, body: String, code: String, lang: String, image: Data?) async throws {
+  func createPost(title: String, body: String, code: String, lang: String,
+                  images: [Data]) async throws {
     var post = try author()
-    // The picture goes up first: a post never points at a file that failed.
-    if let image, let uid = user?.uid {
-      let path = "images/\(uid)/\(Int(Date().timeIntervalSince1970 * 1000)).jpg"
-      let file = Storage.storage().reference(withPath: path)
-      _ = try await file.putDataAsync(image, metadata: metadata("image/jpeg"))
-      post["imageUrl"] = try await file.downloadURL().absoluteString
-      post["imagePath"] = path
+    // The pictures go up first: a post never points at a file that failed.
+    if !images.isEmpty, let uid = user?.uid {
+      var urls: [String] = []
+      var paths: [String] = []
+      for (n, image) in images.prefix(10).enumerated() {
+        let path = "images/\(uid)/\(Int(Date().timeIntervalSince1970 * 1000))-\(n).jpg"
+        let file = Storage.storage().reference(withPath: path)
+        _ = try await file.putDataAsync(image, metadata: metadata("image/jpeg"))
+        urls.append(try await file.downloadURL().absoluteString)
+        paths.append(path)
+      }
+      // The first one is written on its own as well, so an app that predates
+      // the list — an APK someone hasn't updated — shows a picture rather than
+      // an empty post.
+      post["imageUrl"] = urls.first
+      post["imagePath"] = paths.first
+      if urls.count > 1 {
+        post["imageUrls"] = urls
+        post["imagePaths"] = paths
+      }
     }
     post["type"] = "post"
     post["title"] = title.trimmingCharacters(in: .whitespacesAndNewlines)

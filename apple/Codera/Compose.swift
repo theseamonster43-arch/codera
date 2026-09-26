@@ -17,8 +17,8 @@ struct ComposePost: View {
   @State private var body_ = ""
   @State private var code = ""
   @State private var lang = "python"
-  @State private var picked: PhotosPickerItem?
-  @State private var image: Data?
+  @State private var picked: [PhotosPickerItem] = []
+  @State private var images: [Data] = []
   @State private var busy = false
   @State private var error = ""
 
@@ -55,18 +55,30 @@ struct ComposePost: View {
           }
         }
 
-        Panel(title: "Picture") {
-          PhotosPicker(selection: $picked, matching: .images) {
+        Panel(title: images.count > 1 ? "Pictures" : "Picture") {
+          // Up to ten, swiped through in the order they were chosen.
+          PhotosPicker(selection: $picked, maxSelectionCount: 10,
+                       selectionBehavior: .ordered, matching: .images) {
             HStack(spacing: 10) {
-              Image(systemName: "photo").font(.system(size: 17, weight: .semibold)).frame(width: 22)
-              Text(image == nil ? "Add a picture" : "Picture added").font(Sans.semibold(15))
+              Glyph(path: Ink.image, weight: 1.7, size: 20).frame(width: 22)
+              Text(chosen).font(Sans.semibold(15))
               Spacer(minLength: 0)
             }
             .foregroundStyle(Brand.blue)
           }
-          if let image, let ui = UIImage(data: image) {
-            Image(uiImage: ui).resizable().scaledToFill().frame(height: 160).clipped()
-              .clipShape(RoundedRectangle(cornerRadius: 12))
+          if !images.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+              HStack(spacing: 8) {
+                ForEach(Array(images.enumerated()), id: \.offset) { _, data in
+                  if let ui = UIImage(data: data) {
+                    Image(uiImage: ui).resizable().scaledToFill()
+                      .frame(width: images.count == 1 ? 260 : 120, height: 160)
+                      .clipped()
+                      .clipShape(RoundedRectangle(cornerRadius: 12))
+                  }
+                }
+              }
+            }
           }
         }
 
@@ -86,8 +98,20 @@ struct ComposePost: View {
         }
       }
       .task(id: picked) {
-        image = try? await picked?.loadTransferable(type: Data.self)
+        var loaded: [Data] = []
+        for item in picked {
+          if let data = try? await item.loadTransferable(type: Data.self) { loaded.append(data) }
+        }
+        images = loaded
       }
+    }
+  }
+
+  private var chosen: String {
+    switch images.count {
+    case 0: return "Add pictures"
+    case 1: return "1 picture"
+    default: return "\(images.count) pictures"
     }
   }
 
@@ -96,7 +120,7 @@ struct ComposePost: View {
     error = ""
     Task {
       do {
-        try await store.createPost(title: title, body: body_, code: code, lang: lang, image: image)
+        try await store.createPost(title: title, body: body_, code: code, lang: lang, images: images)
         dismiss()
       } catch {
         self.error = error.localizedDescription
@@ -248,7 +272,7 @@ struct EditProfile: View {
           Divider().overlay(Brand.line)
           PhotosPicker(selection: $banner, matching: .images) {
             HStack(spacing: 10) {
-              Image(systemName: "photo").font(.system(size: 17, weight: .semibold))
+              Glyph(path: Ink.image, weight: 1.7, size: 20)
                 .frame(width: 20)
               Text("Change your banner").font(Sans.semibold(15))
               Spacer(minLength: 0)

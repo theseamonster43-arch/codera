@@ -47,8 +47,7 @@ struct HomeHeader: View {
       Mark(size: 30)
       Text("Codera").font(Sans.heavy(19))
       Spacer()
-      Image(systemName: "magnifyingglass")
-        .font(.system(size: 17, weight: .semibold))
+      Glyph(path: Ink.search, weight: 2, size: 19)
         .frame(width: 38, height: 38)
         .background(Brand.bg2, in: Circle())
     }
@@ -77,15 +76,24 @@ struct HomeView: View {
         } else if store.posts.isEmpty {
           ProgressView().padding(.top, 60)
         } else {
-          LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(store.posts) { PostCard(post: $0) }
+          VStack(alignment: .leading, spacing: 18) {
+            // Shorts run along their own shelf rather than down the column: a
+            // tall card in a column of wide ones is a page of one short.
+            if !store.shorts.isEmpty {
+              ShortsShelf(shorts: Array(store.shorts.prefix(12)))
+            }
+
+            LazyVGrid(columns: columns, spacing: 14) {
+              ForEach(store.posts.filter { $0.type != "short" }) { FeedCard(post: $0) }
+            }
+            .padding(.horizontal, 14)
           }
-          .padding(.horizontal, 14)
           .frame(maxWidth: Brand.readable)
           .frame(maxWidth: .infinity)
         }
       }
       .navigationDestination(for: String.self) { ProfileView(uid: $0) }
+      .navigationDestination(for: Watching.self) { WatchPage(post: $0.post) }
     }
   }
 }
@@ -117,15 +125,8 @@ struct PostCard: View {
         Text(body).font(Sans.regular(14.5)).foregroundStyle(Brand.muted)
       }
 
-      if let image = post.imageUrl, let url = URL(string: image) {
-        AsyncImage(url: url) { $0.resizable().scaledToFill() } placeholder: { Brand.bg3 }
-          .frame(height: 180)
-          .clipped()
-          .clipShape(RoundedRectangle(cornerRadius: 12))
-      }
-
-      if post.hasVideo {
-        VideoThumb(url: post.videoUrl)
+      if !post.imageUrls.isEmpty {
+        Gallery(urls: post.imageUrls)
       }
 
       if let code = post.code, !code.isEmpty {
@@ -141,12 +142,12 @@ struct PostCard: View {
       }
 
       HStack(spacing: 16) {
-        Label("\(post.likeCount)", systemImage: "hand.thumbsup")
-        Label("\(post.dislikeCount)", systemImage: "hand.thumbsdown")
+        tally(Ink.up, post.likeCount)
+        tally(Ink.up, post.dislikeCount, over: true)
         // The only one of the three that leads anywhere: the count opens what
         // it is counting.
         Button { talking = true } label: {
-          Label("\(post.commentCount)", systemImage: "bubble")
+          tally(Ink.comment, post.commentCount)
         }
         .buttonStyle(.plain)
       }
@@ -158,6 +159,17 @@ struct PostCard: View {
     .background(Brand.bg2, in: RoundedRectangle(cornerRadius: 16))
     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
     .sheet(isPresented: $talking) { CommentSheet(post: post) }
+  }
+}
+
+extension PostCard {
+  /// A count with Codera's own glyph beside it.
+  fileprivate func tally(_ glyph: String, _ n: Int, over: Bool = false) -> some View {
+    HStack(spacing: 5) {
+      Glyph(path: glyph, weight: 1.7, size: 17)
+        .rotationEffect(.degrees(over ? 180 : 0))
+      Text(compact(n))
+    }
   }
 }
 
@@ -187,6 +199,7 @@ struct YouView: View {
       if let uid = store.user?.uid {
         ProfileView(uid: uid, isMe: true)
           .navigationDestination(for: String.self) { ProfileView(uid: $0) }
+          .navigationDestination(for: Watching.self) { WatchPage(post: $0.post) }
       } else {
         ProgressView()
       }

@@ -51,10 +51,22 @@ service cloud.firestore {
       return d.type == 'post'
         && d.keys().hasOnly(['uid', 'authorName', 'authorPhoto', 'type', 'title',
                              'body', 'code', 'lang', 'imageUrl', 'imagePath',
+                             'imageUrls', 'imagePaths',
                              'likeCount', 'dislikeCount', 'commentCount', 'createdAt'])
         && (d.imageUrl == null || d.imageUrl is string)
         && (d.imagePath == null
             || d.imagePath.matches('images/' + request.auth.uid + '/[^/]+'))
+        // Several pictures, swiped through. The first is also written to
+        // imageUrl, so an app that predates the list still shows one rather
+        // than nothing. Ten is the ceiling the compose screens set.
+        && (d.imageUrls == null
+            || (d.imageUrls is list && d.imageUrls.size() <= 10))
+        // Rules can't test each item of a list, so unlike the single imagePath
+        // these are not checked to be in the poster's own folder. Nothing is
+        // read from them but a delete, and Storage refuses a delete of somebody
+        // else's file whatever a post claims.
+        && (d.imagePaths == null
+            || (d.imagePaths is list && d.imagePaths.size() <= 10))
         && d.body is string && d.body.size() <= 4000
         && d.code is string && d.code.size() <= 8000
         && (d.body.size() > 0 || d.code.size() > 0)

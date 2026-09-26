@@ -67,7 +67,7 @@ struct ProfileView: View {
             .padding(.horizontal, 18).padding(.top, 20)
         } else {
           LazyVGrid(columns: columns, spacing: 14) {
-            ForEach(shown) { PostCard(post: $0) }
+            ForEach(shown) { FeedCard(post: $0) }
           }
           .padding(.horizontal, 14)
         }

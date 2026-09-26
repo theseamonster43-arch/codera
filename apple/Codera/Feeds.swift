@@ -1,5 +1,5 @@
 import SwiftUI
-import AVKit
+import AVFoundation
 
 /**
  * Shorts: one tall video at a time, the next a swipe away.
@@ -66,8 +66,9 @@ private struct ShortPage: View {
 
       if let player {
         // A short is a tall picture: it keeps its shape in a wide window
-        // rather than being cropped to fit the width.
-        VideoPlayer(player: player)
+        // rather than being cropped to fit the width. The surface is the
+        // picture alone — the controls over it are the ones below.
+        PlayerSurface(player: player)
           .aspectRatio(9 / 16, contentMode: .fit)
           .allowsHitTesting(false)
       }
@@ -81,8 +82,7 @@ private struct ShortPage: View {
         .onTapGesture { holdOrPlay() }
 
       if paused {
-        Image(systemName: "play.fill")
-          .font(.system(size: 52))
+        Glyph(path: Ink.play, filled: true, weight: 1, size: 60)
           .foregroundStyle(.white.opacity(0.92))
           .shadow(radius: 12)
           .allowsHitTesting(false)
@@ -90,8 +90,7 @@ private struct ShortPage: View {
       }
 
       if cheered {
-        Image(systemName: "hand.thumbsup.fill")
-          .font(.system(size: 92))
+        Thumb(on: true, size: 92)
           .foregroundStyle(Brand.blue)
           .shadow(radius: 18)
           .scaleEffect(cheered ? 1 : 0.4)
@@ -124,13 +123,13 @@ private struct ShortPage: View {
 
       // Like, dislike and the comment count, up the right-hand edge.
       VStack(spacing: 20) {
-        tally("hand.thumbsup", post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1) {
+        tally(Ink.up, post.likeCount + (mine == 1 ? 1 : 0), on: mine == 1) {
           Task { await store.vote(post.id, 1) }
         }
-        tally("hand.thumbsdown", post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1) {
+        tally(Ink.up, post.dislikeCount + (mine == -1 ? 1 : 0), on: mine == -1, over: true) {
           Task { await store.vote(post.id, -1) }
         }
-        tally("bubble.right", post.commentCount, on: false) { talking = true }
+        tally(Ink.comment, post.commentCount, on: false) { talking = true }
       }
       .padding(.trailing, 14)
       .padding(.bottom, 120)
@@ -168,11 +167,12 @@ private struct ShortPage: View {
   }
 
   /// A thumb or a bubble with its count under it.
-  private func tally(_ glyph: String, _ count: Int, on: Bool, _ press: @escaping () -> Void) -> some View {
+  private func tally(_ glyph: String, _ count: Int, on: Bool, over: Bool = false,
+                     _ press: @escaping () -> Void) -> some View {
     Button(action: press) {
       VStack(spacing: 5) {
-        Image(systemName: on ? glyph + ".fill" : glyph)
-          .font(.system(size: 25, weight: .medium))
+        Glyph(path: glyph, filled: on, weight: 1.9, size: 27)
+          .rotationEffect(.degrees(over ? 180 : 0))
           .foregroundStyle(on ? Brand.blue : .white)
         Text(compact(count))
           .font(Sans.semibold(12.5))
@@ -321,7 +321,7 @@ struct FollowingView: View {
               .padding(.horizontal, 16)
           } else {
             LazyVGrid(columns: columns, spacing: 14) {
-              ForEach(store.followed) { PostCard(post: $0) }
+              ForEach(store.followed) { FeedCard(post: $0) }
             }
             .padding(.horizontal, 14)
           }
@@ -332,6 +332,7 @@ struct FollowingView: View {
       }
       }
       .navigationDestination(for: String.self) { ProfileView(uid: $0) }
+      .navigationDestination(for: Watching.self) { WatchPage(post: $0.post) }
     }
   }
 }
