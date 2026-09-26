@@ -170,6 +170,7 @@ struct PostCard: View {
     .overlay(RoundedRectangle(cornerRadius: 16).stroke(Brand.line, lineWidth: 1))
     .sheet(isPresented: $talking) { CommentSheet(post: post) }
     .task(id: post.id) { await store.loadVote(post.id) }
+    .safety(on: post)
   }
 }
 

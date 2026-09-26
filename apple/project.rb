@@ -33,6 +33,10 @@ target.build_configurations.each do |config|
     'GENERATE_INFOPLIST_FILE' => 'NO',
     'CODE_SIGN_STYLE' => 'Automatic',
     'ASSETCATALOG_COMPILER_APPICON_NAME' => 'AppIcon',
+    # A Vision Pro icon is a stack the system lights and moves apart, not a
+    # flat picture, so that platform gets its own asset.
+    'ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xros*]' => 'AppIconVision',
+    'ASSETCATALOG_COMPILER_APPICON_NAME[sdk=xrsimulator*]' => 'AppIconVision',
     'CODE_SIGN_ENTITLEMENTS' => 'Codera/Codera.entitlements',
     'DEVELOPMENT_TEAM' => ENV.fetch('CODERA_TEAM', ''),
   )

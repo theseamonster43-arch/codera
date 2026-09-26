@@ -35,7 +35,13 @@ struct ShortsView: View {
         // every page shorter than the screen it scrolled in, so each short sat
         // high and the bar underneath it floated in the middle of nothing.
         .background(Color.black.ignoresSafeArea())
-        .onAppear { showing = store.shorts.first?.id }
+        .onAppear { showing = store.openShort ?? store.shorts.first?.id }
+        .onChange(of: store.openShort) { _, wanted in
+          guard let wanted else { return }
+          showing = wanted
+          store.openShort = nil
+        }
+
       }
     }
   }

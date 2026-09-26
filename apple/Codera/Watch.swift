@@ -20,6 +20,7 @@ struct WatchPage: View {
   @State private var player: AVPlayer?
   @State private var talking = false
   @State private var full = false
+  @State private var reporting = false
 
   private var mine: Int { store.myVotes[post.id] ?? 0 }
   private var tall: Bool { post.type == "short" }
@@ -68,6 +69,17 @@ struct WatchPage: View {
           }
           count(Ink.comment, post.commentCount, on: false) { talking = true }
           Spacer(minLength: 0)
+          if post.uid != store.user?.uid {
+            Button { reporting = true } label: {
+              Image(systemName: "flag")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Brand.muted)
+                .frame(width: 38, height: 38)
+                .background(Brand.bg2, in: Circle())
+                .overlay(Circle().stroke(Brand.line, lineWidth: 1))
+            }
+            .buttonStyle(Tappable())
+          }
         }
 
         CommentThread(post: post)
@@ -91,6 +103,7 @@ struct WatchPage: View {
     .navigationBarTitleDisplayMode(.inline)
 #endif
     .sheet(isPresented: $talking) { CommentSheet(post: post) }
+    .sheet(isPresented: $reporting) { ReportSheet(id: post.id, kind: .post) }
     .fullScreenCover(isPresented: $full) {
       ZStack {
         Color.black.ignoresSafeArea()

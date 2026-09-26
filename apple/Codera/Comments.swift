@@ -181,7 +181,11 @@ struct CommentSheet: View {
         Button { dismiss() } label: {
           Text("Close").font(Sans.semibold(15))
         }
+        #if os(visionOS)
+        .buttonStyle(.bordered)
+        #else
         .buttonStyle(.glass)
+        #endif
         .tint(Brand.text)
       }
       .padding(.horizontal, 16)

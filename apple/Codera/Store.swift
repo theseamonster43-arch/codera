@@ -109,6 +109,9 @@ final class Store: ObservableObject {
   private var postsListener: ListenerRegistration?
   private var profileListener: ListenerRegistration?
   private var followsListener: ListenerRegistration?
+  private var blocksListener: ListenerRegistration?
+  /// The feed as it came, before anybody blocked is taken out of it.
+  private var everything: [Post] = []
 
   init() {
 #if DEBUG
@@ -129,6 +132,7 @@ final class Store: ObservableObject {
         self.ready = true
         self.watchProfile()
         self.watchFollows()
+        self.watchBlocks()
         self.watchPosts()
       }
     }
@@ -146,7 +150,8 @@ final class Store: ObservableObject {
           guard let self else { return }
           if let error { self.loadError = error.localizedDescription; return }
           self.loadError = nil
-          self.posts = snap?.documents.map { Post(id: $0.documentID, data: $0.data()) } ?? []
+          self.everything = snap?.documents.map { Post(id: $0.documentID, data: $0.data()) } ?? []
+          self.sift()
           self.learnFaces()
         }
       }
@@ -199,9 +204,79 @@ final class Store: ObservableObject {
   }
 
   /// Which way this account voted on a post, as far as the app has been told.
+  /// A short somebody asked for from somewhere else — a shelf, a profile. The
+  /// Shorts tab is where a short is watched, so asking for one goes there
+  /// rather than opening a second, lesser player on top of wherever you were.
+  /// People this account has blocked: neither of you sees the other on Codera.
+  @Published var blocked: Set<String> = []
+
+  @Published var openShort: String?
+
+
   @Published var myVotes: [String: Int] = [:]
 
+
+  private func watchBlocks() {
+    blocksListener?.remove()
+    blocksListener = nil
+    guard let me = user?.uid else { blocked = []; return }
+    blocksListener = Firestore.firestore().collection("blocks")
+      .whereField("from", isEqualTo: me)
+      .addSnapshotListener { [weak self] snap, _ in
+        Task { @MainActor in
+          guard let self else { return }
+          self.blocked = Set(snap?.documents.compactMap { $0.get("to") as? String } ?? [])
+          self.sift()
+        }
+      }
+  }
+
+  /// The feed as it should read: without the people this account blocked.
+  private func sift() {
+    posts = everything.filter { !blocked.contains($0.uid) || $0.uid == user?.uid }
+  }
+
+  /**
+   * Block somebody, or let them back.
+   *
+   * The id is fixed by the rules — yours, then theirs — which is what keeps it
+   * to one record per pair rather than a pile of them.
+   */
+  func toggleBlock(_ uid: String) async {
+    guard let me = user?.uid, uid != me else { return }
+    let ref = Firestore.firestore().document("blocks/" + me + "_" + uid)
+    if blocked.contains(uid) {
+      try? await ref.delete()
+    } else {
+      try? await ref.setData(["from": me, "to": uid, "at": FieldValue.serverTimestamp()])
+    }
+  }
+
+  /**
+   * Say something is wrong with a post, a stream or a person.
+   *
+   * One per person per thing: the id is the two of them together, and the
+   * rules refuse a create over an existing one. That refusal is the whole
+   * mechanism — nothing counts how many times somebody pressed it.
+   */
+  func report(_ id: String, kind: Reported, reason: Reason) async throws {
+    guard let me = user?.uid else { throw Blocked("Sign in to report.") }
+    try await Firestore.firestore().document("reports/" + id + "_" + me).setData([
+      "postId": id,
+      "kind": kind.rawValue,
+      "uid": me,
+      "reason": reason.rawValue,
+      "at": FieldValue.serverTimestamp(),
+    ])
+  }
+
+  /// Whether a failed report failed because there is already one.
+  nonisolated func alreadyReported(_ error: Error) -> Bool {
+    (error as NSError).code == FirestoreErrorCode.permissionDenied.rawValue
+  }
+
   /// Reads back the vote on one post, so a thumb shows what was already pressed.
+
   /**
    * What has been said under a post, oldest first, as it is being said.
    *

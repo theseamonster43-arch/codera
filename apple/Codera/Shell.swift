@@ -13,6 +13,7 @@ import UIKit
  * middle of the bar, except on a Vision Pro, where there is nothing to make yet.
  */
 struct Shell: View {
+  @EnvironmentObject var store: Store
   @State private var tab = 0
   @State private var previous = 0
   @State private var creating = false
@@ -103,7 +104,12 @@ struct Shell: View {
       }
     }
 #endif
+    // Asking for a short from anywhere else lands on the tab that plays them.
+    .onChange(of: store.openShort) { _, wanted in
+      if wanted != nil { tab = 1 }
+    }
     .onChange(of: tab) { old, new in
+
       // Create opens on top of wherever you were, rather than being a page.
       if new == 2 {
         creating = true

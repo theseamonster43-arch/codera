@@ -30,8 +30,20 @@ struct VideoCard: View {
   private var tall: Bool { post.type == "short" }
 
   var body: some View {
-    NavigationLink(value: Watching(post: post)) {
-      VStack(alignment: .leading, spacing: 0) {
+    if tall {
+      // A short is watched in the Shorts tab, swiping on from there.
+      Button { store.openShort = post.id } label: { card }
+        .buttonStyle(Tappable(scale: 0.975))
+        .safety(on: post)
+    } else {
+      NavigationLink(value: Watching(post: post)) { card }
+        .buttonStyle(Tappable(scale: 0.975))
+        .safety(on: post)
+    }
+  }
+
+  private var card: some View {
+    VStack(alignment: .leading, spacing: 0) {
         VideoThumb(post: post, tall: tall)
 
         HStack(alignment: .top, spacing: 10) {
@@ -59,8 +71,6 @@ struct VideoCard: View {
       .overlay(
         RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Brand.line, lineWidth: 1)
       )
-    }
-    .buttonStyle(Tappable(scale: 0.975))
   }
 }
 
