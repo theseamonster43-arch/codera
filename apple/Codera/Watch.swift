@@ -104,14 +104,16 @@ struct WatchPage: View {
 #endif
     .sheet(isPresented: $talking) { CommentSheet(post: post) }
     .sheet(isPresented: $reporting) { ReportSheet(id: post.id, kind: .post) }
+    // Full screen means the whole screen: the picture takes as much of it as
+    // its shape allows rather than keeping the box it had on the page.
     .fullScreenCover(isPresented: $full) {
       ZStack {
-        Color.black.ignoresSafeArea()
+        Color.black
         if let player {
           CoderaPlayer(player: player, full: true, onFull: { full = false })
-            .aspectRatio(tall ? 9.0 / 16.0 : 16.0 / 9.0, contentMode: .fit)
         }
       }
+      .ignoresSafeArea()
     }
     .task(id: post.id) { await store.loadVote(post.id) }
     .onAppear {
