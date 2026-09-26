@@ -1296,16 +1296,28 @@ async function uploadTo(path, file, onProgress) {
   return getDownloadURL(ref(storage, path));
 }
 
-async function createPost({ title, body, code, lang, image, onProgress }) {
+/** How many pictures one post can carry. The rules allow the same. */
+const MAX_PICS = 10;
+
+async function createPost({ title, body, code, lang, images, onProgress }) {
   const who = author();
-  let imageUrl = null, imagePath = null;
-  if (image) {
-    // The picture goes up first: a post is never written pointing at a file
-    // that failed to upload.
-    const ext = (image.type && image.type.split('/')[1]) || 'jpg';
-    imagePath = 'images/' + who.uid + '/' + Date.now() + '.' + ext;
-    imageUrl = await uploadTo(imagePath, image, onProgress);
+  const chosen = (images || []).slice(0, MAX_PICS);
+  const imageUrls = [], imagePaths = [];
+  // The pictures go up first: a post is never written pointing at a file that
+  // failed to upload. Progress counts across all of them, not each in turn.
+  for (let i = 0; i < chosen.length; i++) {
+    const pic = chosen[i];
+    const ext = (pic.type && pic.type.split('/')[1]) || 'jpg';
+    const path = 'images/' + who.uid + '/' + Date.now() + '-' + i + '.' + ext;
+    imagePaths.push(path);
+    imageUrls.push(await uploadTo(path, pic, done => {
+      if (onProgress) onProgress((i + done) / chosen.length);
+    }));
   }
+  // The first is written on its own as well, so an app that predates the list
+  // — an APK nobody has updated — shows a picture rather than nothing.
+  const imageUrl = imageUrls[0] || null;
+  const imagePath = imagePaths[0] || null;
   return addDoc(collection(db, POSTS), Object.assign({}, who, {
     type: 'post',
     title: title.trim(),
@@ -1313,6 +1325,8 @@ async function createPost({ title, body, code, lang, image, onProgress }) {
     code: (code || '').replace(/\s+$/, ''),
     lang: lang || null,
     imageUrl, imagePath,
+    imageUrls: imageUrls.length > 1 ? imageUrls : null,
+    imagePaths: imagePaths.length > 1 ? imagePaths : null,
     likeCount: 0, dislikeCount: 0, commentCount: 0,
     createdAt: serverTimestamp(),
   }));
@@ -1336,7 +1350,9 @@ async function uploadVideo({ file, kind, title, description, duration, onProgres
 
 async function removePost(post) {
   if (post.videoPath) { try { await deleteObject(ref(storage, post.videoPath)); } catch (e) {} }
-  if (post.imagePath) { try { await deleteObject(ref(storage, post.imagePath)); } catch (e) {} }
+  for (const path of picPathsOf(post)) {
+    try { await deleteObject(ref(storage, path)); } catch (e) {}
+  }
   await deleteDoc(doc(db, POSTS, post.id));
 }
 
@@ -1640,6 +1656,99 @@ function avatar(p, size = 34) {
 }
 
 /**
+ * The pictures on a post.
+ *
+ * Posts written before a post could carry several have the one, in imageUrl.
+ */
+function picsOf(p) {
+  if (Array.isArray(p.imageUrls) && p.imageUrls.length) return p.imageUrls;
+  return p.imageUrl ? [p.imageUrl] : [];
+}
+
+function picPathsOf(p) {
+  if (Array.isArray(p.imagePaths) && p.imagePaths.length) return p.imagePaths;
+  return p.imagePath ? [p.imagePath] : [];
+}
+
+/**
+ * Every picture on a post, laid out at once.
+ *
+ * One fills the width. Two sit side by side, three and four make a block, and
+ * beyond that the last tile shown says how many more there are and opens them.
+ * Nothing is hidden behind a swipe: what a post came with is on the page.
+ */
+function picGrid(p, show) {
+  const pics = picsOf(p);
+  if (!pics.length) return '';
+  const room = Math.min(pics.length, show || pics.length);
+  const over = pics.length - room;
+  const shape = pics.length === 1 ? 'one' : pics.length === 2 ? 'two'
+    : pics.length === 3 ? 'three' : 'many';
+
+  const tiles = pics.slice(0, room).map((url, i) => {
+    const more = over > 0 && i === room - 1
+      ? '<span class="pic-more">+' + over + '</span>' : '';
+    return '<button class="pic-tile" data-pic="' + i + '" aria-label="Picture ' + (i + 1) + '">'
+      + '<img src="' + esc(url) + '" alt="" loading="lazy">' + more + '</button>';
+  }).join('');
+
+  return '<div class="pics ' + shape + '" data-pics="' + esc(JSON.stringify(pics)) + '">'
+    + tiles + '</div>';
+}
+
+/**
+ * One picture, filling the window.
+ *
+ * Arrow keys and the buttons move between them; Escape, the cross, or the
+ * darkness around the picture closes it.
+ */
+function openPics(pics, at) {
+  if (!pics.length) return;
+  let i = Math.max(0, Math.min(at || 0, pics.length - 1));
+
+  const box = document.createElement('div');
+  box.className = 'lightbox';
+  box.innerHTML = '<button class="lb-shut" aria-label="Close">' + I.close() + '</button>'
+    + '<button class="lb-step back" aria-label="Previous">' + I.back() + '</button>'
+    + '<img alt="">'
+    + '<button class="lb-step on" aria-label="Next">' + '<span class="flip">' + I.back() + '</span>' + '</button>'
+    + '<div class="lb-count"></div>';
+
+  const picture = box.querySelector('img');
+  const count = box.querySelector('.lb-count');
+  const steps = box.querySelectorAll('.lb-step');
+
+  const draw = () => {
+    picture.src = pics[i];
+    count.textContent = (i + 1) + ' / ' + pics.length;
+    steps.forEach(b => { b.hidden = pics.length < 2; });
+  };
+
+  const move = by => { i = (i + by + pics.length) % pics.length; draw(); };
+  const shut = () => {
+    box.remove();
+    document.removeEventListener('keydown', keys);
+    document.body.classList.remove('lb-open');
+  };
+  const keys = e => {
+    if (e.key === 'Escape') shut();
+    else if (e.key === 'ArrowLeft') move(-1);
+    else if (e.key === 'ArrowRight') move(1);
+  };
+
+  box.querySelector('.lb-shut').onclick = shut;
+  box.querySelector('.back').onclick = () => move(-1);
+  box.querySelector('.on').onclick = () => move(1);
+  // The darkness closes it; the picture itself does not.
+  box.onclick = e => { if (e.target === box) shut(); };
+
+  draw();
+  document.body.appendChild(box);
+  document.body.classList.add('lb-open');
+  document.addEventListener('keydown', keys);
+}
+
+/**
  * A thumbnail for a video or short.
  *
  * The video element is its own poster: asking for a moment just past the start
@@ -1689,7 +1798,7 @@ function cardPost(p, opts) {
       ${mine && opts && opts.own ? `<button class="dots" data-menu="${p.id}">${I.dots()}</button>` : ''}
     </div>
     ${reviewNote(p)}
-    ${p.imageUrl ? `<img class="pic" src="${esc(p.imageUrl)}" alt="" loading="lazy">` : ''}
+    ${picGrid(p, 4)}
     ${p.body ? `<div class="body">${esc(p.body)}</div>` : ''}
     ${p.code ? `<pre class="code">${esc(p.code.split('\n').slice(0, 6).join('\n'))}</pre>` : ''}
     <div class="who">${plural(p.likeCount, 'like')} · ${plural(p.commentCount, 'comment')}</div>
@@ -3301,7 +3410,7 @@ function pageWatch(main, id) {
       <div>
         ${isVideo(p)
           ? playerHTML(p.videoUrl, {})
-          : (p.imageUrl ? `<div class="player"><img src="${esc(p.imageUrl)}" alt="" style="width:100%;display:block"></div>` : '')}
+          : picGrid(p, 6)}
         <h1>${esc(p.title)}</h1>
         <div class="byline">
           <a class="to-user" href="${userHref(p)}">${avatar(face(p), 40)}</a>
@@ -4065,7 +4174,7 @@ function openCreate() {
 const LANGS = ['JavaScript', 'Python', 'TypeScript', 'Java', 'C++', 'Go', 'Rust', 'Other'];
 
 function composePost() {
-  let image = null;
+  let images = [];
   let lang = null;
 
   sheet(`
@@ -4073,7 +4182,7 @@ function composePost() {
     <p class="note">A title and either words or code.</p>
     <input class="field" id="npTitle" placeholder="Title" maxlength="120">
     <textarea class="field" id="npBody" placeholder="What did you learn, build or break?" maxlength="4000"></textarea>
-    <button class="pickfile" id="npPick">Add a picture</button>
+    <button class="pickfile" id="npPick">Add pictures</button>
     <div id="npPreview"></div>
     <textarea class="field mono" id="npCode" placeholder="// optional snippet" spellcheck="false" maxlength="8000"></textarea>
     <div class="chips" id="npLangs" hidden>${LANGS.map(l => `<button class="chip" data-lang="${l}">${l}</button>`).join('')}</div>
@@ -4087,14 +4196,27 @@ function composePost() {
   const file = document.createElement('input');
   file.type = 'file';
   file.accept = 'image/*';
+  file.multiple = true;
+
+  // Each one shows with a cross on it, because the way to drop the third of
+  // four is to press the third of four.
+  const drawPicked = () => {
+    const box = el('npPreview');
+    if (!images.length) { box.innerHTML = ''; return; }
+    box.innerHTML = '<div class="picked">' + images.map((pic, i) =>
+      '<span><img src="' + URL.createObjectURL(pic) + '" alt="">'
+      + '<button data-drop="' + i + '" aria-label="Remove">' + I.close() + '</button></span>').join('')
+      + '</div>';
+    box.querySelectorAll('[data-drop]').forEach(b => {
+      b.onclick = () => { images.splice(Number(b.dataset.drop), 1); drawPicked(); };
+    });
+  };
+
   file.onchange = () => {
-    const f = file.files[0];
-    if (!f) return;
-    image = f;
-    el('npPreview').innerHTML = `<img src="${URL.createObjectURL(f)}" alt=""
-      style="width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-bottom:11px">
-      <button class="pill" id="npDrop" style="margin-bottom:11px">Remove picture</button>`;
-    el('npDrop').onclick = () => { image = null; el('npPreview').innerHTML = ''; };
+    // Picked in more than one go: adding three and then two makes five.
+    images = images.concat(Array.from(file.files || [])).slice(0, MAX_PICS);
+    file.value = '';
+    drawPicked();
   };
   el('npPick').onclick = () => file.click();
 
@@ -4122,7 +4244,7 @@ function composePost() {
     const bar = el('npBar');
     try {
       await createPost({
-        title, body, code: snippet, lang: snippet ? lang : null, image,
+        title, body, code: snippet, lang: snippet ? lang : null, images,
         onProgress: f => { bar.hidden = false; bar.firstElementChild.style.width = (f * 100) + '%'; },
       });
       closeSheet();
@@ -4753,6 +4875,18 @@ document.addEventListener('click', e => {
     if (problem) { toast(problem); return; }
     box.value = '';
     addComment(route().arg, text).catch(err => { box.value = text; toast(message(err)); });
+    return;
+  }
+
+  // A picture opens itself rather than the post it is on.
+  const tile = t.closest('[data-pic]');
+  if (tile) {
+    e.preventDefault();
+    e.stopPropagation();
+    const holder = tile.closest('[data-pics]');
+    try {
+      openPics(JSON.parse(holder.dataset.pics), Number(tile.dataset.pic));
+    } catch (err) { /* nothing to open */ }
     return;
   }
 

@@ -1350,3 +1350,79 @@ h1.title .i { width: 1em; height: 1em; }
   aside .cbox { flex-wrap: wrap; }
   aside .cbox textarea { min-width: 0; }
 }
+
+/* Pictures on a post ------------------------------------------------------- */
+/* All of them at once, in a block that keeps its shape as the column narrows. */
+.pics { display: grid; gap: 6px; margin-bottom: 11px; }
+.pics.one { grid-template-columns: 1fr; }
+.pics.two { grid-template-columns: 1fr 1fr; }
+.pics.three { grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; }
+.pics.three .pic-tile:first-child { grid-row: span 2; }
+.pics.many { grid-template-columns: 1fr 1fr; }
+
+.pic-tile {
+  position: relative; padding: 0; border: 0; cursor: zoom-in; overflow: hidden;
+  border-radius: 10px; background: var(--bg3); line-height: 0;
+}
+.pic-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pics.one .pic-tile img { max-height: 420px; }
+.pics.two .pic-tile img, .pics.many .pic-tile img { aspect-ratio: 1 / 1; }
+.pics.three .pic-tile img { height: 100%; aspect-ratio: auto; min-height: 96px; }
+.pic-tile img { transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.3, 1); }
+.pic-tile:hover img { transform: scale(1.04); }
+
+/* How many more there are, on the last one shown. */
+.pic-more {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.55); color: #fff;
+  font-size: 26px; font-weight: 900; letter-spacing: -0.5px;
+}
+
+/* One picture, filling the window ------------------------------------------ */
+.lightbox {
+  position: fixed; inset: 0; z-index: 90; display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.92); padding: 40px 64px;
+  animation: fade 0.16s ease both;
+}
+.lightbox img {
+  max-width: 100%; max-height: 100%; object-fit: contain;
+  border-radius: 8px; animation: rise 0.22s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+}
+.lightbox button {
+  position: absolute; display: grid; place-items: center; cursor: pointer;
+  width: 44px; height: 44px; border-radius: 999px; color: #fff;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+}
+.lightbox button:hover { background: rgba(255, 255, 255, 0.22); }
+.lb-shut { top: 16px; right: 16px; }
+.lb-step { top: 50%; transform: translateY(-50%); }
+.lb-step.back { left: 14px; }
+.lb-step.on { right: 14px; }
+.lb-step .flip { display: grid; transform: rotate(180deg); }
+.lb-count {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+  color: rgba(255, 255, 255, 0.72); font-size: 13px; font-weight: 600;
+}
+body.lb-open { overflow: hidden; }
+
+/* Narrow: the arrows would sit on the picture, so they go under it. */
+@media (max-width: 640px) {
+  .lightbox { padding: 56px 12px 64px; }
+  .lb-step { top: auto; bottom: 14px; transform: none; }
+  .lb-step.back { left: calc(50% - 60px); }
+  .lb-step.on { right: calc(50% - 60px); }
+  .lb-count { bottom: 70px; }
+}
+
+/* Chosen, before they are posted ------------------------------------------- */
+.picked { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 11px; }
+.picked span { position: relative; line-height: 0; }
+.picked img { width: 78px; height: 78px; object-fit: cover; border-radius: 10px; }
+.picked button {
+  position: absolute; top: -6px; right: -6px; width: 22px; height: 22px;
+  display: grid; place-items: center; cursor: pointer;
+  border-radius: 999px; background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text);
+}
+.picked button .i { width: 13px; height: 13px; }
