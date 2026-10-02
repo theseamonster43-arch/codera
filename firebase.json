@@ -12,6 +12,9 @@
   },
   "hosting": {
     "public": "web",
+    "rewrites": [
+      { "source": "/tv", "destination": "/tv.html" }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
