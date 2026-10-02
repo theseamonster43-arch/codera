@@ -117,9 +117,7 @@ export default function TVSignIn() {
         </Text>
         <Text style={s.step}>2.  Enter this code</Text>
 
-        {err ? (
-          <Text style={s.err}>{err}</Text>
-        ) : pair ? (
+        {pair ? (
           <View style={s.codeBox}>
             {pair.code.split('').map((c, i) => (
               <View key={i} style={s.cell}><Text style={s.cellTxt}>{c}</Text></View>
@@ -128,6 +126,10 @@ export default function TVSignIn() {
         ) : (
           <ActivityIndicator color={T.blue} size="large" style={s.spin} />
         )}
+
+        {/* Beside the code, never instead of it: a message saying the code is
+            still good is worth nothing if it is covering the code. */}
+        {!!err && <Text style={s.err}>{err}</Text>}
 
         <Text style={s.note}>
           Nothing is typed here. Whoever says yes on their phone is who this
