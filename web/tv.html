@@ -15,8 +15,7 @@
     background: var(--bg); color: var(--text); font-family: 'Scoutie Sans', system-ui, sans-serif; }
   .box { width: 100%; max-width: 400px; text-align: center; background: var(--card); border: 1px solid var(--line);
     border-radius: 20px; padding: 32px 24px; }
-  .mark { width: 62px; height: 62px; border-radius: 17px; margin: 0 auto 14px; display: grid; place-items: center;
-    background: linear-gradient(135deg, #22c55e, #2563eb); color: #fff; font-weight: 800; font-size: 24px; }
+  .mark { width: 64px; height: 64px; margin: 0 auto 14px; display: block; border-radius: 18px; }
   h1 { font-size: 22px; margin: 0 0 6px; font-weight: 800; }
   p { color: var(--muted); margin: 0 0 20px; line-height: 1.55; font-size: 14.5px; }
   input { width: 100%; box-sizing: border-box; height: 62px; border-radius: 14px; border: 1px solid var(--line);
@@ -27,6 +26,12 @@
     font: inherit; font-weight: 800; font-size: 15.5px; cursor: pointer; }
   button:disabled { opacity: .5; cursor: default; }
   .err { color: #ef4444; font-size: 13.5px; margin-top: 14px; min-height: 18px; }
+  .lead { font-size: 19px; font-weight: 800; color: var(--text); margin: 4px 0 12px; }
+  .where { background: var(--field); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .where b { display: block; font-size: 17px; font-weight: 800; }
+  .where span { display: block; color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  .warn { color: var(--muted); font-size: 13.5px; line-height: 1.5; margin: 0 0 16px; }
+  .quiet { background: none; border: 1px solid var(--line); color: var(--text); margin-top: 8px; }
   .ok { color: #22c55e; font-size: 15px; font-weight: 700; margin-top: 14px; }
   a { color: inherit; }
 </style>
@@ -42,13 +47,31 @@
   named. See functions/tv.js.
 -->
 <div class="box">
-  <div class="mark">&lt;/&gt;</div>
+  <img class="mark" src="/icon.svg" alt="" width="64" height="64">
   <h1>Sign in to your TV</h1>
   <p id="lead">Enter the code shown on your television.</p>
 
-  <input id="code" inputmode="latin" autocomplete="one-time-code" maxlength="6"
-         placeholder="______" aria-label="The code on your television">
-  <button id="go" disabled>Sign in the TV</button>
+  <div id="ask">
+    <input id="code" inputmode="latin" autocomplete="one-time-code" maxlength="6"
+           placeholder="______" aria-label="The code on your television">
+    <button id="go" disabled>Continue</button>
+  </div>
+
+  <!-- Nothing is handed over until this has been read and answered. A code can
+       be read off a screen, or read out over the phone by somebody who wants
+       your account on their television; where it is asking from is how you
+       tell those apart. -->
+  <div id="check" hidden>
+    <p class="lead">Is this you?</p>
+    <div class="where"><b id="place">Somewhere we couldn’t tell</b><span id="when"></span></div>
+    <p class="warn">
+      If you aren’t at this television, say no — somebody else would get into
+      your account.
+    </p>
+    <button id="yes">Yes, sign in my TV</button>
+    <button id="no" class="quiet">No, that isn’t me</button>
+  </div>
+
   <p class="err" id="err"></p>
   <div id="done" hidden class="ok">Done — your TV is signing in.</div>
 </div>
@@ -94,17 +117,48 @@ onAuthStateChanged(auth, user => {
   ready();
 });
 
+/** "a moment ago", "4 minutes ago" — how long the television has been waiting. */
+function since(ms) {
+  if (!ms) return '';
+  const mins = Math.floor((Date.now() - ms) / 60000);
+  if (mins < 1) return 'Asked a moment ago';
+  return 'Asked ' + mins + (mins === 1 ? ' minute ago' : ' minutes ago');
+}
+
 go.onclick = async () => {
   go.disabled = true;
   err.textContent = '';
   try {
-    await httpsCallable(fns, 'tvPairApprove')({ code: code.value.trim() });
-    el('done').hidden = false;
-    code.disabled = true;
-    go.hidden = true;
+    const res = await httpsCallable(fns, 'tvPairWho')({ code: code.value.trim() });
+    const d = res.data || {};
+    if (d.place) el('place').textContent = 'A television in ' + d.place;
+    el('when').textContent = since(d.asked);
+    el('ask').hidden = true;
+    el('check').hidden = false;
   } catch (e) {
     err.textContent = (e && e.message) || 'That didn’t work. Check the code and try again.';
     go.disabled = false;
+  }
+};
+
+el('no').onclick = () => {
+  el('check').hidden = true;
+  el('ask').hidden = false;
+  code.value = '';
+  go.disabled = true;
+  err.textContent = 'Nothing was signed in.';
+};
+
+el('yes').onclick = async () => {
+  el('yes').disabled = true;
+  err.textContent = '';
+  try {
+    await httpsCallable(fns, 'tvPairApprove')({ code: code.value.trim() });
+    el('check').hidden = true;
+    el('done').hidden = false;
+  } catch (e) {
+    err.textContent = (e && e.message) || 'That didn’t work. The TV will show a new code.';
+    el('yes').disabled = false;
   }
 };
 </script>

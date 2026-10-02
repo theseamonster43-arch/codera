@@ -73,17 +73,27 @@ export default function TVSignIn() {
           await signInWithCustomToken(auth, d.token);
         }
       } catch (e) {
-        // A refused poll means this pairing is finished with; ask for another.
-        if (alive) setPair(null);
+        if (!alive) return;
+        // Only the television's own secret being wrong means this pairing is
+        // finished with. Anything else is the server having a bad moment, and
+        // throwing the code away for that is how a perfectly good pairing
+        // turned into a fresh code on screen while somebody was still typing
+        // the old one.
+        if (e && e.code === 'functions/permission-denied') {
+          setPair(null);
+          return;
+        }
+        setErr('Couldn’t finish signing in. The code is still good — trying again.');
       }
     }, 2500);
 
     return () => { alive = false; clearInterval(tick); };
   }, [pair]);
 
-  // Lost or expired: ask for a fresh one.
+  // Lost or expired: ask for a fresh one. A pairing that is still good keeps
+  // its code however loudly the last poll complained.
   useEffect(() => {
-    if (pair || err) return undefined;
+    if (pair) return undefined;
     const again = setTimeout(async () => {
       try {
         const res = await httpsCallable(functions, 'tvPairStart')({});

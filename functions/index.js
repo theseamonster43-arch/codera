@@ -44,6 +44,7 @@ exports.payoutsDashboard = tips.payoutsDashboard;
 const tv = require('./tv');
 
 exports.tvPairStart = tv.tvPairStart;
+exports.tvPairWho = tv.tvPairWho;
 exports.tvPairApprove = tv.tvPairApprove;
 exports.tvPairClaim = tv.tvPairClaim;
 

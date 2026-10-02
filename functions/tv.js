@@ -36,6 +36,34 @@ const CODE_LENGTH = 6;
 const MINUTES = 10;
 
 const db = () => getFirestore();
+
+/** The address the television called from, as the proxy in front reports it. */
+function addressOf(req) {
+  const raw = req.rawRequest || {};
+  const forwarded = String((raw.headers && raw.headers['x-forwarded-for']) || '');
+  return (forwarded.split(',')[0] || raw.ip || '').trim();
+}
+
+/**
+ * Roughly where an address is.
+ *
+ * A free, keyless lookup, and a failure is simply no place rather than a wrong
+ * one: "somewhere we couldn't tell" is a fair thing to show somebody, and a
+ * confident wrong city is not. Only the town and country come back — enough to
+ * recognise your own living room, not enough to point at a house.
+ */
+async function placeOf(ip) {
+  if (!ip) return null;
+  try {
+    const res = await fetch('http://ip-api.com/json/' + encodeURIComponent(ip)
+      + '?fields=status,country,city');
+    const data = await res.json();
+    if (!data || data.status !== 'success') return null;
+    return [data.city, data.country].filter(Boolean).join(', ') || null;
+  } catch (e) {
+    return null;
+  }
+}
 const hash = s => crypto.createHash('sha256').update(String(s)).digest('hex');
 
 function newCode() {
@@ -50,7 +78,7 @@ function newCode() {
  *
  * Unauthenticated, necessarily: nobody is signed in on the television yet.
  */
-exports.tvPairStart = onCall(async () => {
+exports.tvPairStart = onCall(async req => {
   const secret = crypto.randomBytes(32).toString('hex');
   const expires = Date.now() + MINUTES * 60 * 1000;
 
@@ -64,6 +92,10 @@ exports.tvPairStart = onCall(async () => {
         uid: null,
         at: FieldValue.serverTimestamp(),
         expires,
+        // Kept so that whoever approves can be shown where the television
+        // asking is, and refuse if it is not theirs. It goes no further than
+        // the approval screen and dies with the pairing.
+        ip: addressOf(req),
       });
       return { code, secret, expires };
     } catch (e) {
@@ -71,6 +103,39 @@ exports.tvPairStart = onCall(async () => {
     }
   }
   throw new HttpsError('resource-exhausted', 'Couldn’t start a sign-in. Try again.');
+});
+
+/**
+ * What is asking, before anybody says yes to it.
+ *
+ * A code typed into a page is a code somebody read off a screen — or was told
+ * over the phone by someone who wants your account on their television. So the
+ * code alone never hands anything over: this says where the television asking
+ * is and when it asked, and the person decides whether that is their living
+ * room.
+ */
+exports.tvPairWho = onCall(async req => {
+  const uid = req.auth && req.auth.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in first.');
+
+  const code = String((req.data && req.data.code) || '').trim().toUpperCase();
+  if (!/^[A-Z2-9]{6}$/.test(code)) {
+    throw new HttpsError('invalid-argument', 'That isn’t a sign-in code.');
+  }
+
+  const snap = await db().doc('tvPairings/' + code).get();
+  if (!snap.exists || snap.get('expires') < Date.now()) {
+    throw new HttpsError('not-found', 'That code has expired. The TV will show a new one.');
+  }
+  if (snap.get('uid')) {
+    throw new HttpsError('failed-precondition', 'That code has already been used.');
+  }
+
+  const at = snap.get('at');
+  return {
+    place: await placeOf(snap.get('ip')),
+    asked: at && at.toMillis ? at.toMillis() : null,
+  };
 });
 
 /**
