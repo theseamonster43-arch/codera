@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, StyleSheet, ScrollView, ActivityIndicator, Image,
+  View, Text, StyleSheet, ScrollView, ActivityIndicator, Image, Animated,
 } from 'react-native';
 
 import { useTheme, F } from '../theme';
@@ -10,7 +10,7 @@ import Mark from '../Mark';
 import usePosts from '../usePosts';
 import { useFollowing, useFace } from '../social';
 import { useProfile } from '../profile';
-import { useFocus } from './focus';
+import { Focusable, useArrival } from './focus';
 import TVCard from './TVCard';
 import TVWatch from './TVWatch';
 
@@ -42,21 +42,27 @@ export default function TVShell() {
 
   return (
     <View style={s.fill}>
-      <View style={s.rail}>
+      {/* Across the top, the way a television usually carries its places: the
+          picture is the wide thing on a TV, so the chrome goes along the short
+          edge and leaves the width to what you came to watch. */}
+      <View style={s.bar}>
         <View style={s.brand}>
-          <Mark size={34} />
+          <Mark size={28} />
           <Text style={s.wordmark}>Codera</Text>
         </View>
-        {TABS.map(t => (
-          <RailItem
-            key={t.id}
-            tab={t}
-            on={tab === t.id}
-            onPress={() => setTab(t.id)}
-            T={T}
-            s={s}
-          />
-        ))}
+        <View style={s.tabs}>
+          {TABS.map((t, i) => (
+            <TabItem
+              key={t.id}
+              tab={t}
+              on={tab === t.id}
+              first={i === 0}
+              onPress={() => setTab(t.id)}
+              T={T}
+              s={s}
+            />
+          ))}
+        </View>
       </View>
 
       <View style={s.stage}>
@@ -66,22 +72,26 @@ export default function TVShell() {
   );
 }
 
-/** One place in the rail. Focus and being the open page are different things. */
-function RailItem({ tab, on, onPress, T, s }) {
-  const focus = useFocus();
+/** One place in the bar. Focus and being the open page are different things. */
+function TabItem({ tab, on, first, onPress, T, s }) {
   const Icon = tab.icon;
-  const lit = focus.on || on;
   return (
-    <Pressable {...focus.bind} onPress={onPress}
-               style={[s.railItem, focus.on && s.railItemOn]}
+    <Focusable onPress={onPress} first={first} grow={1.08}
                accessibilityRole="tab" accessibilityState={{ selected: on }}>
-      <Icon color={lit ? T.text : T.muted} size={24} filled={on} />
-      <Text style={[s.railTxt, lit && s.railTxtOn]}>{tab.label}</Text>
-    </Pressable>
+      {focused => (
+        <View style={[s.tabItem, on && s.tabItemOpen, focused && s.tabItemOn]}>
+          <Icon color={focused || on ? T.text : T.muted} size={19} filled={on} />
+          {/* Only the page being viewed says its name. The others are their
+              icons, which is what a bar of five places can afford to be. */}
+          {on && <Text style={s.tabTxt}>{tab.label}</Text>}
+        </View>
+      )}
+    </Focusable>
   );
 }
 
 function Page({ tab, onWatch, T, s }) {
+  const arriving = useArrival(tab);
   const { posts, loading, error } = usePosts();
   const following = useFollowing();
   const me = auth.currentUser;
@@ -139,13 +149,15 @@ function Page({ tab, onWatch, T, s }) {
   }
 
   return (
-    <ScrollView contentContainerStyle={s.page}>
-      {shorts.length > 0 && (
-        <Shelf title="Shorts" items={shorts.slice(0, 12)} tall onWatch={onWatch} T={T} s={s} />
-      )}
-      <Shelf title="Latest" items={rest} onWatch={onWatch} T={T} s={s}
-             none="Nothing posted yet." />
-    </ScrollView>
+    <Animated.View style={[s.grow, arriving]}>
+      <ScrollView contentContainerStyle={s.page}>
+        {shorts.length > 0 && (
+          <Shelf title="Shorts" items={shorts.slice(0, 12)} tall onWatch={onWatch} T={T} s={s} />
+        )}
+        <Shelf title="Latest" items={rest} onWatch={onWatch} T={T} s={s}
+               none="Nothing posted yet." />
+      </ScrollView>
+    </Animated.View>
   );
 }
 
@@ -160,7 +172,7 @@ function Shelf({ title, items, tall, onWatch, T, s, none }) {
         <ScrollView horizontal showsHorizontalScrollIndicator={false}
                     contentContainerStyle={s.shelf}>
           {items.map(p => (
-            <TVCard key={p.id} post={p} wide={tall ? 210 : 330}
+            <TVCard key={p.id} post={p} wide={tall ? 112 : 186}
                     onPress={() => onWatch(p)} />
           ))}
         </ScrollView>
@@ -187,7 +199,7 @@ function Grid({ title, items, onWatch, T, s, none }) {
       ) : (
         <View style={s.grid}>
           {items.map(p => (
-            <TVCard key={p.id} post={p} wide={330} onPress={() => onWatch(p)} />
+            <TVCard key={p.id} post={p} wide={186} onPress={() => onWatch(p)} />
           ))}
         </View>
       )}
@@ -196,41 +208,48 @@ function Grid({ title, items, onWatch, T, s, none }) {
 }
 
 const styles = T => StyleSheet.create({
-  fill: { flex: 1, flexDirection: 'row', backgroundColor: T.bg },
-
-  rail: {
-    width: 232, paddingTop: 34, paddingHorizontal: 16, gap: 6,
-    backgroundColor: T.bg2, borderRightWidth: 1, borderRightColor: T.border,
+  bar: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 22, paddingTop: 10, paddingBottom: 8,
+    backgroundColor: T.bg2, borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 26, paddingLeft: 8 },
-  wordmark: { color: T.text, fontSize: 21, fontFamily: F['900'], letterSpacing: -0.4 },
-  railItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 14,
-    height: 54, paddingHorizontal: 16, borderRadius: 27,
+  brand: {
+    position: 'absolute', left: 22, top: 0, bottom: 0,
+    flexDirection: 'row', alignItems: 'center', gap: 9,
+  },
+  wordmark: { color: T.text, fontSize: 15.5, fontFamily: F['900'], letterSpacing: -0.4 },
+  tabs: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  tabItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    height: 34, paddingHorizontal: 12, borderRadius: 17,
     borderWidth: 2, borderColor: 'transparent',
   },
-  railItemOn: { backgroundColor: T.bg3, borderColor: T.green },
-  railTxt: { color: T.muted, fontSize: 16.5, fontFamily: F['700'] },
-  railTxtOn: { color: T.text },
+  // The page you are on and the thing the remote is resting on are different
+  // facts, so they look different: a quiet ground for one, the ring for the other.
+  tabItemOpen: { backgroundColor: T.bg3 },
+  tabItemOn: { backgroundColor: T.bg3, borderColor: T.green },
+  tabTxt: { color: T.text, fontSize: 13.5, fontFamily: F['700'] },
 
+  fill: { flex: 1, backgroundColor: T.bg },
+  grow: { flex: 1 },
   stage: { flex: 1 },
-  page: { padding: 34, gap: 34 },
-  block: { gap: 16 },
-  heading: { color: T.text, fontSize: 24, fontFamily: F['800'], letterSpacing: -0.4 },
-  shelf: { gap: 20, paddingVertical: 10, paddingHorizontal: 6 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, paddingVertical: 10, paddingHorizontal: 6 },
+  page: { padding: 18, gap: 18 },
+  block: { gap: 9 },
+  heading: { color: T.text, fontSize: 15.5, fontFamily: F['800'], letterSpacing: -0.4 },
+  shelf: { gap: 14, paddingVertical: 8, paddingHorizontal: 5 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingVertical: 8, paddingHorizontal: 5 },
 
   spin: { marginTop: 80 },
-  empty: { padding: 60, gap: 8 },
-  emptyTitle: { color: T.text, fontSize: 21, fontFamily: F['800'] },
-  emptyBody: { color: T.muted, fontSize: 16, fontFamily: F['400'], lineHeight: 24 },
+  empty: { padding: 40, gap: 6 },
+  emptyTitle: { color: T.text, fontSize: 16, fontFamily: F['800'] },
+  emptyBody: { color: T.muted, fontSize: 13, fontFamily: F['400'], lineHeight: 19 },
 
-  you: { flexDirection: 'row', alignItems: 'center', gap: 20 },
+  you: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   bigAvatar: {
-    width: 86, height: 86, borderRadius: 43, backgroundColor: T.bg3, overflow: 'hidden',
+    width: 60, height: 60, borderRadius: 30, backgroundColor: T.bg3, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   photo: { width: '100%', height: '100%' },
-  youName: { color: T.text, fontSize: 27, fontFamily: F['900'] },
-  youNote: { color: T.muted, fontSize: 15.5, fontFamily: F['500'], marginTop: 4 },
+  youName: { color: T.text, fontSize: 19, fontFamily: F['900'] },
+  youNote: { color: T.muted, fontSize: 12.5, fontFamily: F['500'], marginTop: 3 },
 });

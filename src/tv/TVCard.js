@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet, Image } from 'react-native';
 import Video from 'react-native-video';
 
 import { useTheme, F, clock, compact } from '../theme';
 import { ago, picsOf } from '../data';
 import { Person, Play } from '../Icons';
 import { useFace } from '../social';
-import { useFocus } from './focus';
+import { Focusable } from './focus';
 
 /**
  * One thing to watch, across the room.
@@ -20,21 +20,22 @@ export default function TVCard({ post, wide = 300, onPress }) {
   const s = useMemo(() => styles(T), [T]);
   const [still, setStill] = useState(false);
   const face = useFace(post.uid, post);
-  const focus = useFocus();
 
   const short = post.type === 'short';
   const video = short || post.type === 'video' || post.type === 'live';
   const pics = picsOf(post);
 
   return (
-    <Pressable
-      {...focus.bind}
+    <Focusable
       onPress={onPress}
-      style={[s.card, { width: wide }, focus.on && s.on]}
+      grow={1.06}
+      style={[s.card, { width: wide }]}
       accessibilityRole="button"
       accessibilityLabel={post.title + ', by ' + face.name}
     >
-      <View style={[s.stage, short ? s.tall : s.flat, focus.on && s.stageOn]}>
+      {focused => (
+      <View style={[s.inner, focused && s.on]}>
+      <View style={[s.stage, short ? s.tall : s.flat]}>
         {video ? (
           <>
             <Video
@@ -48,7 +49,7 @@ export default function TVCard({ post, wide = 300, onPress }) {
               repeat={false}
               onProgress={() => { if (!still) setStill(true); }}
             />
-            {focus.on && (
+            {focused && (
               <View style={s.playBtn}><Play color="#fff" size={30} /></View>
             )}
             {short && <View style={s.tag}><Text style={s.tagTxt}>SHORT</Text></View>}
@@ -83,46 +84,49 @@ export default function TVCard({ post, wide = 300, onPress }) {
           </Text>
         </View>
       </View>
-    </Pressable>
+      </View>
+      )}
+    </Focusable>
   );
 }
 
 const styles = T => StyleSheet.create({
-  card: {
+  card: { borderRadius: 16 },
+  inner: {
     borderRadius: 16, overflow: 'hidden', backgroundColor: T.bg2,
     borderWidth: 2, borderColor: 'transparent',
   },
-  // Focus is shown with the brand colour and a lift, never colour alone.
-  on: { borderColor: T.green, transform: [{ scale: 1.04 }] },
+  // Focus is shown with the brand colour and the lift Focusable gives it,
+  // never colour alone: across a room a colour change by itself is missable.
+  on: { borderColor: T.green },
   stage: { width: '100%', backgroundColor: '#000' },
   flat: { aspectRatio: 16 / 9 },
   tall: { aspectRatio: 9 / 16 },
-  stageOn: { opacity: 1 },
   playBtn: {
     position: 'absolute', alignSelf: 'center', top: '50%', marginTop: -28,
-    width: 56, height: 56, borderRadius: 28,
+    width: 40, height: 40, borderRadius: 20,
     alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.5)',
   },
-  words: { flex: 1, padding: 16, justifyContent: 'center' },
-  wordsTxt: { color: T.text, fontSize: 17, fontFamily: F['600'], lineHeight: 25 },
+  words: { flex: 1, padding: 11, justifyContent: 'center' },
+  wordsTxt: { color: T.text, fontSize: 13, fontFamily: F['600'], lineHeight: 19 },
   tag: {
-    position: 'absolute', left: 10, bottom: 10, borderRadius: 6,
-    paddingHorizontal: 8, paddingVertical: 4, backgroundColor: T.green,
+    position: 'absolute', left: 7, bottom: 7, borderRadius: 5,
+    paddingHorizontal: 6, paddingVertical: 2, backgroundColor: T.green,
   },
   streamTag: { backgroundColor: T.red },
-  tagTxt: { color: '#04140b', fontSize: 11.5, fontFamily: F['900'] },
+  tagTxt: { color: '#04140b', fontSize: 9, fontFamily: F['900'] },
   len: {
-    position: 'absolute', right: 10, bottom: 10, borderRadius: 6,
-    paddingHorizontal: 7, paddingVertical: 4, backgroundColor: 'rgba(0,0,0,0.78)',
+    position: 'absolute', right: 7, bottom: 7, borderRadius: 5,
+    paddingHorizontal: 5, paddingVertical: 2, backgroundColor: 'rgba(0,0,0,0.78)',
   },
-  lenTxt: { color: '#fff', fontSize: 12, fontFamily: F['700'] },
-  body: { flexDirection: 'row', gap: 10, padding: 12 },
+  lenTxt: { color: '#fff', fontSize: 9.5, fontFamily: F['700'] },
+  body: { flexDirection: 'row', gap: 7, padding: 9 },
   avatar: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: T.bg3, overflow: 'hidden',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: T.bg3, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   photo: { width: '100%', height: '100%' },
   said: { flex: 1, gap: 2 },
-  title: { color: T.text, fontSize: 16, fontFamily: F['700'] },
-  who: { color: T.muted, fontSize: 13, fontFamily: F['500'] },
+  title: { color: T.text, fontSize: 12.5, fontFamily: F['700'] },
+  who: { color: T.muted, fontSize: 11, fontFamily: F['500'] },
 });
