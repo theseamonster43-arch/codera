@@ -41,7 +41,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # No setup-android step: the Ubuntu runner image already carries the
+      # Android SDK with its licences accepted, and the action trips over
+      # re-accepting them.
 
       # Git does not carry the executable bit on Windows checkouts.
       - name: Let gradlew run
