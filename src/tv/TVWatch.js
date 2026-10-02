@@ -28,36 +28,26 @@ export default function TVWatch({ post, onBack }) {
   const [paused, setPaused] = useState(false);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(0);
-  const [showing, setShowing] = useState(true);
-  const hiding = useRef(null);
-
-  /** Show the controls, and take them away again once they have been read. */
-  const reveal = () => {
-    setShowing(true);
-    clearTimeout(hiding.current);
-    hiding.current = setTimeout(() => setShowing(false), 4000);
-  };
+  // The controls stay.
+  //
+  // A phone can hide them because a finger can tap anywhere to ask for them
+  // back. A remote cannot: hiding them takes away the only things focus can
+  // rest on, so there is nothing left to press and no way to ask for them
+  // again. They sit at the bottom, out of the picture, and the remote always
+  // has somewhere to be.
 
   const step = by => {
     const to = Math.max(0, Math.min(length || 0, at + by));
     setAt(to);
     video.current?.seek(to);
-    reveal();
   };
 
-  const hold = () => {
-    setPaused(was => {
-      const now = !was;
-      clearTimeout(hiding.current);
-      if (now) setShowing(true); else reveal();
-      return now;
-    });
-  };
+  const hold = () => setPaused(was => !was);
 
   // The remote's back button leaves the video rather than the app.
   React.useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { onBack(); return true; });
-    return () => { sub.remove(); clearTimeout(hiding.current); };
+    return () => sub.remove();
   }, [onBack]);
 
   const through = length > 0 ? Math.max(0, Math.min(1, at / length)) : 0;
@@ -77,8 +67,7 @@ export default function TVWatch({ post, onBack }) {
         repeat={tall}
       />
 
-      {showing && (
-        <View style={s.over} pointerEvents="box-none">
+      <View style={s.over} pointerEvents="box-none">
           <View style={s.top}>
             <Text style={s.title} numberOfLines={1}>{post.title}</Text>
             <View style={s.by}>
@@ -104,30 +93,36 @@ export default function TVWatch({ post, onBack }) {
               <Knob label={'Back ' + STEP} onPress={() => step(-STEP)} T={T} s={s}>
                 <Text style={s.knobTxt}>-{STEP}</Text>
               </Knob>
-              <Knob label={paused ? 'Play' : 'Pause'} onPress={hold} T={T} s={s} big>
-                {paused ? <Play color="#fff" size={26} /> : <Pause color="#fff" size={26} />}
+              <Knob label={paused ? 'Play' : 'Pause'} onPress={hold} T={T} s={s} big first>
+                {paused ? <Play color="#fff" size={21} /> : <Pause color="#fff" size={21} />}
               </Knob>
               <Knob label={'Forward ' + STEP} onPress={() => step(STEP)} T={T} s={s}>
                 <Text style={s.knobTxt}>+{STEP}</Text>
               </Knob>
               <Knob label="Back to Codera" onPress={onBack} T={T} s={s}>
-                <View style={s.flip}><Chevron color="#fff" size={22} /></View>
+                <View style={s.flip}><Chevron color="#fff" size={18} /></View>
               </Knob>
             </View>
           </View>
-        </View>
-      )}
+      </View>
     </View>
   );
 }
 
 /** One control the remote can land on. */
-function Knob({ children, label, onPress, big, T, s }) {
+function Knob({ children, label, onPress, big, first, T, s }) {
   const focus = useFocus();
   return (
-    <Pressable {...focus.bind} onPress={onPress}
-               style={[s.knob, big && s.knobBig, focus.on && s.knobOn]}
-               accessibilityRole="button" accessibilityLabel={label}>
+    <Pressable
+      focusable
+      hasTVPreferredFocus={first}
+      onFocus={focus.bind.onFocus}
+      onBlur={focus.bind.onBlur}
+      onPress={onPress}
+      style={[s.knob, big && s.knobBig, focus.on && s.knobOn]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
       {children}
     </Pressable>
   );
@@ -135,32 +130,38 @@ function Knob({ children, label, onPress, big, T, s }) {
 
 const styles = T => StyleSheet.create({
   fill: { flex: 1, backgroundColor: '#000' },
-  over: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
+  over: { ...StyleSheet.absoluteFillObject },
 
-  top: { padding: 34, backgroundColor: 'rgba(0,0,0,0.45)', gap: 8 },
-  title: { color: '#fff', fontSize: 26, fontFamily: F['800'], letterSpacing: -0.4 },
+  top: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    padding: 22, backgroundColor: 'rgba(0,0,0,0.5)', gap: 6,
+  },
+  title: { color: '#fff', fontSize: 19, fontFamily: F['800'], letterSpacing: -0.4 },
   by: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: T.bg3, overflow: 'hidden',
+    width: 24, height: 24, borderRadius: 12, backgroundColor: T.bg3, overflow: 'hidden',
     alignItems: 'center', justifyContent: 'center',
   },
   photo: { width: '100%', height: '100%' },
-  who: { color: 'rgba(255,255,255,0.8)', fontSize: 15, fontFamily: F['500'] },
+  who: { color: 'rgba(255,255,255,0.8)', fontSize: 12.5, fontFamily: F['500'] },
 
-  bottom: { padding: 34, gap: 12, backgroundColor: 'rgba(0,0,0,0.55)' },
-  track: { height: 5, borderRadius: 3, justifyContent: 'center' },
-  rail: { height: 5, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.3)' },
-  done: { position: 'absolute', height: 5, borderRadius: 3, backgroundColor: T.green },
-  time: { color: '#fff', fontSize: 14, fontFamily: F['600'] },
-  controls: { flexDirection: 'row', gap: 16, marginTop: 4 },
+  bottom: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: 22, gap: 9, backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  track: { height: 4, borderRadius: 2, justifyContent: 'center' },
+  rail: { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)' },
+  done: { position: 'absolute', height: 4, borderRadius: 2, backgroundColor: T.green },
+  time: { color: '#fff', fontSize: 12, fontFamily: F['600'] },
+  controls: { flexDirection: 'row', gap: 11, marginTop: 2 },
   knob: {
-    minWidth: 62, height: 54, paddingHorizontal: 16, borderRadius: 27,
+    minWidth: 48, height: 42, paddingHorizontal: 13, borderRadius: 21,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 2, borderColor: 'transparent',
   },
-  knobBig: { minWidth: 86 },
+  knobBig: { minWidth: 66 },
   knobOn: { backgroundColor: 'rgba(255,255,255,0.3)', borderColor: T.green },
-  knobTxt: { color: '#fff', fontSize: 17, fontFamily: F['800'] },
+  knobTxt: { color: '#fff', fontSize: 14, fontFamily: F['800'] },
   flip: { transform: [{ rotate: '180deg' }] },
 });
