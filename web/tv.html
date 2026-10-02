@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sign in to your TV — Codera</title>
+<meta name="robots" content="noindex">
+<style>
+  @font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-ExtraBold.ttf') format('truetype'); font-weight: 800; }
+  @font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Bold.ttf') format('truetype'); font-weight: 700; }
+  @font-face { font-family: 'Scoutie Sans'; src: url('/fonts/ScoutieSans-Regular.ttf') format('truetype'); font-weight: 400; }
+  :root { color-scheme: light dark; --bg: #f6f7f6; --card: #fff; --text: #0c120e; --muted: #56655b; --line: rgba(22, 101, 52, .14); --field: #f1f4f2; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #070a08; --card: #0e1512; --text: #eef3ef; --muted: #7a8b7e; --line: rgba(34, 197, 94, .12); --field: #111a15; } }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; box-sizing: border-box;
+    background: var(--bg); color: var(--text); font-family: 'Scoutie Sans', system-ui, sans-serif; }
+  .box { width: 100%; max-width: 400px; text-align: center; background: var(--card); border: 1px solid var(--line);
+    border-radius: 20px; padding: 32px 24px; }
+  .mark { width: 62px; height: 62px; border-radius: 17px; margin: 0 auto 14px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #22c55e, #2563eb); color: #fff; font-weight: 800; font-size: 24px; }
+  h1 { font-size: 22px; margin: 0 0 6px; font-weight: 800; }
+  p { color: var(--muted); margin: 0 0 20px; line-height: 1.55; font-size: 14.5px; }
+  input { width: 100%; box-sizing: border-box; height: 62px; border-radius: 14px; border: 1px solid var(--line);
+    background: var(--field); color: var(--text); font: inherit; font-weight: 800; font-size: 30px;
+    text-align: center; letter-spacing: 10px; text-transform: uppercase; }
+  button { width: 100%; height: 50px; margin-top: 14px; border-radius: 14px; border: 0;
+    background: linear-gradient(135deg, #22c55e, #2563eb); color: #fff;
+    font: inherit; font-weight: 800; font-size: 15.5px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  .err { color: #ef4444; font-size: 13.5px; margin-top: 14px; min-height: 18px; }
+  .ok { color: #22c55e; font-size: 15px; font-weight: 700; margin-top: 14px; }
+  a { color: inherit; }
+</style>
+</head>
+<body>
+<!--
+  Saying yes to a television.
+
+  The television never signs anybody in: it shows a code and waits. This page is
+  where somebody already signed in — on this phone, in this browser — says which
+  account the television gets. That is the whole of the trust: the account handed
+  over is the account that pressed the button here, never one the television
+  named. See functions/tv.js.
+-->
+<div class="box">
+  <div class="mark">&lt;/&gt;</div>
+  <h1>Sign in to your TV</h1>
+  <p id="lead">Enter the code shown on your television.</p>
+
+  <input id="code" inputmode="latin" autocomplete="one-time-code" maxlength="6"
+         placeholder="______" aria-label="The code on your television">
+  <button id="go" disabled>Sign in the TV</button>
+  <p class="err" id="err"></p>
+  <div id="done" hidden class="ok">Done — your TV is signing in.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-auth.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.0.0/firebase-functions.js';
+
+// The same project the rest of the site signs in to, so the session already
+// in this browser is the one that approves.
+const app = initializeApp({
+  apiKey: 'AIzaSyAff6wCaEfD0jOrYI51xbqyXR3jGx6KEd4',
+  authDomain: 'codera-46b86.firebaseapp.com',
+  projectId: 'codera-46b86',
+});
+const auth = getAuth(app);
+const fns = getFunctions(app, 'https://us-central1-codera-46b86.cloudfunctions.net');
+
+const el = id => document.getElementById(id);
+const code = el('code'), go = el('go'), err = el('err');
+
+// Followed the square rather than typed it: the code is already here.
+const asked = new URLSearchParams(location.search).get('code');
+if (asked) code.value = asked.toUpperCase().slice(0, 6);
+
+const ready = () => { go.disabled = code.value.trim().length !== 6 || !auth.currentUser; };
+code.addEventListener('input', () => {
+  code.value = code.value.toUpperCase().replace(/[^A-Z2-9]/g, '');
+  err.textContent = '';
+  ready();
+});
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    el('lead').textContent = 'Enter the code shown on your television. Your TV will sign in as '
+      + (user.displayName || user.email || 'you') + '.';
+  } else {
+    // Nothing to approve with: this page hands over the account you are signed
+    // in as, so there has to be one.
+    el('lead').innerHTML = 'Open <a href="/">Codera</a> and sign in first, then come back here.';
+  }
+  ready();
+});
+
+go.onclick = async () => {
+  go.disabled = true;
+  err.textContent = '';
+  try {
+    await httpsCallable(fns, 'tvPairApprove')({ code: code.value.trim() });
+    el('done').hidden = false;
+    code.disabled = true;
+    go.hidden = true;
+  } catch (e) {
+    err.textContent = (e && e.message) || 'That didn’t work. Check the code and try again.';
+    go.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

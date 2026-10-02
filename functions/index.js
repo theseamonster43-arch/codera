@@ -40,6 +40,13 @@ exports.payoutsLink = tips.payoutsLink;
 exports.payoutsStatus = tips.payoutsStatus;
 exports.payoutsDashboard = tips.payoutsDashboard;
 
+// Signing a television in, from a phone that is already signed in.
+const tv = require('./tv');
+
+exports.tvPairStart = tv.tvPairStart;
+exports.tvPairApprove = tv.tvPairApprove;
+exports.tvPairClaim = tv.tvPairClaim;
+
 // Community Standards: every new post screened, and reports acted on.
 //
 // Not exported yet. Firebase refuses to deploy anything at all while a secret

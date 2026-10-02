@@ -28,6 +28,9 @@ import ComposeVideoScreen from './src/screens/ComposeVideoScreen';
 import PlusScreen from './src/screens/PlusScreen';
 import CommentsScreen from './src/screens/CommentsScreen';
 import WatchScreen from './src/screens/WatchScreen';
+import TVShell from './src/tv/TVShell';
+import TVSignIn from './src/tv/TVSignIn';
+import { isTV } from './src/tv/focus';
 import LiveViewScreen from './src/screens/LiveViewScreen';
 import UserScreen from './src/screens/UserScreen';
 import { SheetHost } from './src/Sheet';
@@ -189,9 +192,15 @@ export default function App() {
           {!user ? (
             // Signed out there is no navigator at all, rather than a navigator
             // with guarded screens — so no deep link or back gesture can reach inside.
-            <SignInScreen />
+            // A television asks a phone to sign it in: nobody types an address
+            // with a remote. See src/tv/TVSignIn.js.
+            isTV ? <TVSignIn /> : <SignInScreen />
           ) : !named ? (
             <ChooseNameScreen />
+          ) : isTV ? (
+            // A television has a remote, not a thumb: a rail down the side,
+            // rows to move along, and nothing to make. See src/tv/.
+            <TVShell />
           ) : (
             <NavigationContainer theme={navTheme}>
               <Stack.Navigator screenOptions={{ headerShown: false }}>
