@@ -16,7 +16,9 @@ name: Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    # This branch too until it lands on main: workflow_dispatch only offers
+    # itself once the file is on the default branch.
+    branches: [main, safety-links-and-age-checks]
 
 jobs:
   apk:
